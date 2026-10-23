@@ -1,5 +1,6 @@
 import streamlit as st
 import openpyxl
+import pandas as pd
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 import io
@@ -12,10 +13,14 @@ st.set_page_config(
 )
 
 st.title("🚚 Sistema de Controlo de Fretes e Logística")
-st.markdown("Insira os dados abaixo. O sistema calcula o **Total Geral** em tempo real e gera a sua planilha Excel.")
+st.markdown("Insira e **guarde os fretes um por um**. O sistema acumula as viagens e gera a planilha consolidada no final.")
 
-with st.form("frete_form"):
-    st.subheader("Adicionar Novo Frete")
+# Inicializar a lista de fretes na memória da sessão
+if "lista_fretes" not in st.session_state:
+    st.session_state.lista_fretes = []
+
+with st.form("frete_form", clear_on_submit=True):
+    st.subheader("Adicionar Novo Frete à Lista")
     col1, col2, col3 = st.columns(3)
     
     with col1:
@@ -37,18 +42,42 @@ with st.form("frete_form"):
     total_geral_preview = (km * quantidade * valor_frete) + pedagio
 
     st.markdown("---")
-    st.markdown("### 📊 Pré-visualização do Cálculo Automático:")
+    st.markdown(f"**Pré-visualização do Total deste Frete:** R$ {total_geral_preview:,.2f}")
     
-    # Exibe apenas o Total Geral na tela, removendo o KM Total
-    st.metric("Total Geral (R$)", f"R$ {total_geral_preview:,.2f}")
-    
-    st.markdown("---")
-        
-    submitted = st.form_submit_button("Gerar e Descarregar Planilha Excel")
+    submitted_add = st.form_submit_button("➕ Adicionar Este Frete à Lista")
 
-if submitted:
+if submitted_add:
+    # Adicionar o registro atual na lista da sessão
+    st.session_state.lista_fretes.append({
+        "data": str(data_frete),
+        "fretista": fretista,
+        "obra": obra,
+        "fornecedor": fornecedor,
+        "quantidade": quantidade,
+        "km": km,
+        "pedagio": pedagio,
+        "valor_frete": valor_frete
+    })
+    st.success("Frete adicionado com sucesso! Pode inserir o próximo ou descarregar a planilha abaixo.")
+
+# Se houver fretes guardados, exibe a tabela acumulada e o botão de exportar
+if len(st.session_state.lista_fretes) > 0:
+    st.markdown("---")
+    st.subheader(f"📋 Fretes Acumulados ({len(st.session_state.lista_fretes)} registos)")
+    
+    # Exibir tabela prévia na tela
+    df_preview = pd.DataFrame(st.session_state.lista_fretes)
+    st.dataframe(df_preview, use_container_width=True)
+
+    col_btn1, col_btn2 = st.columns(2)
+
+    # Botão para limpar a lista
+    if col_btn1.button("🗑️ Limpar Todos os Registos"):
+        st.session_state.lista_fretes = []
+        st.rerun()
+
+    # Gerar a Planilha Excel consolidada com todos os itens guardados
     try:
-        # Criar workbook via openpyxl
         wb = openpyxl.Workbook()
         ws_dash = wb.active
         ws_dash.title = "Resumo Geral"
@@ -99,28 +128,22 @@ if submitted:
             cell.alignment = align_center
             cell.border = thin_border
 
-        # Dados inseridos pelo utilizador
-        dados_exemplo = [
-            (str(data_frete), fretista, obra, fornecedor, quantidade, km, pedagio, valor_frete),
-        ]
-
         start_row = 4
-        for i, row_data in enumerate(dados_exemplo):
+        for i, item in enumerate(st.session_state.lista_fretes):
             r = start_row + i
-            d, f_name, o_name, forn, q, k, ped, v_frete = row_data
             
-            ws.cell(row=r, column=1, value=d).alignment = align_center
-            ws.cell(row=r, column=2, value=f_name).alignment = align_left
-            ws.cell(row=r, column=3, value=o_name).alignment = align_left
-            ws.cell(row=r, column=4, value=forn).alignment = align_left
-            ws.cell(row=r, column=5, value=q).alignment = align_right
-            ws.cell(row=r, column=6, value=k).alignment = align_right
+            ws.cell(row=r, column=1, value=item["data"]).alignment = align_center
+            ws.cell(row=r, column=2, value=item["fretista"]).alignment = align_left
+            ws.cell(row=r, column=3, value=item["obra"]).alignment = align_left
+            ws.cell(row=r, column=4, value=item["fornecedor"]).alignment = align_left
+            ws.cell(row=r, column=5, value=item["quantidade"]).alignment = align_right
+            ws.cell(row=r, column=6, value=item["km"]).alignment = align_right
             
-            # FÓRMULA DE MULTIPLICAÇÃO 1: Quantidade x KM (Coluna G)
+            # FÓRMULA DE MULTIPLICAÇÃO: Quantidade x KM (Coluna G)
             ws.cell(row=r, column=7, value=f"=E{r}*F{r}").alignment = align_right
             
-            ws.cell(row=r, column=8, value=ped).alignment = align_right
-            ws.cell(row=r, column=9, value=v_frete).alignment = align_right
+            ws.cell(row=r, column=8, value=item["pedagio"]).alignment = align_right
+            ws.cell(row=r, column=9, value=item["valor_frete"]).alignment = align_right
             
             # FÓRMULA PRINCIPAL: (KM x Quantidade x Valor do Frete) + Pedágio -> =(G * Valor_Frete) + Pedágio
             ws.cell(row=r, column=10, value=f"=(G{r}*I{r})+H{r}").alignment = align_right
@@ -137,8 +160,10 @@ if submitted:
                 cell = ws.cell(row=r, column=c)
                 cell.font = font_regular
                 cell.border = thin_border
+                if i % 2 == 1:
+                    cell.fill = fill_zebra
 
-        tot_row = start_row + len(dados_exemplo)
+        tot_row = start_row + len(st.session_state.lista_fretes)
         ws.cell(row=tot_row, column=1, value="TOTAL GERAL").font = font_bold
         ws.cell(row=tot_row, column=5, value=f"=SUM(E{start_row}:E{tot_row-1})")
         ws.cell(row=tot_row, column=6, value=f"=SUM(F{start_row}:F{tot_row-1})")
@@ -166,12 +191,12 @@ if submitted:
         wb.save(output)
         output.seek(0)
 
-        st.success("Planilha gerada com sucesso!")
-        st.download_button(
-            label="📥 Descarregar Planilha Excel",
+        col_btn2.download_button(
+            label="📥 Descarregar Planilha Consolidada",
             data=output,
             file_name="Controle_de_Fretes.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True
         )
     except Exception as e:
-        st.error(f"Ocorreu um erro ao gerar o arquivo: {e}")
+        st.error(f"Ocorreu um erro ao gerar o arquivo Excel: {e}")
