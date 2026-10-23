@@ -30,7 +30,7 @@ with st.form("frete_form"):
         
     with col3:
         pedagio = st.number_input("Valor do Pedágio (R$)", min_value=0.0, value=12.50, format="%.2f")
-        valor_km = st.number_input("Valor Frete/KM (R$)", min_value=0.0, value=8.00, format="%.2f")
+        valor_frete = st.number_input("Valor do Frete (R$)", min_value=0.0, value=150.00, format="%.2f")
         
     submitted = st.form_submit_button("Gerar Planilha Excel")
 
@@ -77,7 +77,7 @@ if submitted:
         headers = [
             "Data", "Fretista", "Obra", "Fornecedor", 
             "Quantidade", "KM", "KM Total (Qtd x KM)", 
-            "Pedágio (R$)", "Valor Frete/KM (R$)", "Total Geral (R$)"
+            "Pedágio (R$)", "Valor do Frete (R$)", "Total Geral (R$)"
         ]
 
         for col_idx, header in enumerate(headers, 1):
@@ -89,13 +89,13 @@ if submitted:
 
         # Dados inseridos pelo usuário
         dados_exemplo = [
-            (str(data_frete), fretista, obra, fornecedor, quantidade, km, pedagio, valor_km),
+            (str(data_frete), fretista, obra, fornecedor, quantidade, km, pedagio, valor_frete),
         ]
 
         start_row = 4
         for i, row_data in enumerate(dados_exemplo):
             r = start_row + i
-            d, f_name, o_name, forn, q, k, ped, v_km = row_data
+            d, f_name, o_name, forn, q, k, ped, v_frete = row_data
             
             ws.cell(row=r, column=1, value=d).alignment = align_center
             ws.cell(row=r, column=2, value=f_name).alignment = align_left
@@ -104,11 +104,15 @@ if submitted:
             ws.cell(row=r, column=5, value=q).alignment = align_right
             ws.cell(row=r, column=6, value=k).alignment = align_right
             
-            # Fórmulas solicitadas
+            # FÓRMULA 1: Multiplica Quantidade por KM (Coluna G)
             ws.cell(row=r, column=7, value=f"=E{r}*F{r}").alignment = align_right
+            
             ws.cell(row=r, column=8, value=ped).alignment = align_right
-            ws.cell(row=r, column=9, value=v_km).alignment = align_right
-            ws.cell(row=r, column=10, value=f"=(G{r}*I{r})+H{r}").alignment = align_right
+            ws.cell(row=r, column=9, value=v_frete).alignment = align_right
+            
+            # FÓRMULA 2: (Quantidade * KM) + Pedágio + Valor do Frete (Coluna J)
+            # Nota: Como G(KM Total) já é E*F, podemos usar =(G{r}) + H{r} + I{r} ou =(E{r}*F{r})+H{r}+I{r}
+            ws.cell(row=r, column=10, value=f"=G{r}+H{r}+I{r}").alignment = align_right
             
             ws.cell(row=r, column=1).number_format = "yyyy-mm-dd"
             ws.cell(row=r, column=5).number_format = "#,##0"
@@ -129,6 +133,7 @@ if submitted:
         ws.cell(row=tot_row, column=6, value=f"=SUM(F{start_row}:F{tot_row-1})")
         ws.cell(row=tot_row, column=7, value=f"=SUM(G{start_row}:G{tot_row-1})")
         ws.cell(row=tot_row, column=8, value=f"=SUM(H{start_row}:H{tot_row-1})")
+        ws.cell(row=tot_row, column=9, value=f"=SUM(I{start_row}:I{tot_row-1})")
         ws.cell(row=tot_row, column=10, value=f"=SUM(J{start_row}:J{tot_row-1})")
 
         for c in range(1, 11):
@@ -142,7 +147,7 @@ if submitted:
             col_letter = get_column_letter(col[0].column)
             ws.column_dimensions[col_letter].width = max(max_len + 4, 15)
 
-        # Salvar em buffer de memória para o Streamlit permitir download
+        # Salvar em buffer de memória para download
         output = io.BytesIO()
         wb.save(output)
         output.seek(0)
