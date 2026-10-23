@@ -13,7 +13,7 @@ st.set_page_config(
 )
 
 st.title("🚚 Sistema de Controlo de Fretes e Logística")
-st.markdown("Insira e **guarde os fretes um por um**. O sistema acumula as viagens e gera a planilha consolidada no final.")
+st.markdown("Insira e **guarde os fretes um por um**. O valor total de cada viagem aparece na tabela abaixo.")
 
 # Inicializar a lista de fretes na memória da sessão
 if "lista_fretes" not in st.session_state:
@@ -29,7 +29,7 @@ with st.form("frete_form", clear_on_submit=True):
         obra = st.text_input("Obra", "Obra Residencial Alpha")
         
     with col2:
-        fornecedor = st.text_input("Fornecedor", "Pedreira Vale")
+        fornecedor = st.text_input("Fornecedor", "Ellenco")
         # Quantidade em toneladas (aceita números quebrados)
         quantidade = st.number_input("Quantidade (Ton)", min_value=0.0, value=2.5, step=0.1, format="%.2f")
         km = st.number_input("KM (Quilometragem)", min_value=0.0, value=45.0, format="%.1f")
@@ -47,26 +47,34 @@ with st.form("frete_form", clear_on_submit=True):
     submitted_add = st.form_submit_button("➕ Adicionar Este Frete à Lista")
 
 if submitted_add:
+    # Calcular o total geral da viagem para guardar na lista
+    total_geral_viagem = (km * quantidade * valor_frete) + pedagio
+    km_total_viagem = quantidade * km
+
     # Adicionar o registro atual na lista da sessão
     st.session_state.lista_fretes.append({
-        "data": str(data_frete),
-        "fretista": fretista,
-        "obra": obra,
-        "fornecedor": fornecedor,
-        "quantidade": quantidade,
-        "km": km,
-        "pedagio": pedagio,
-        "valor_frete": valor_frete
+        "Data": str(data_frete),
+        "Fretista": fretista,
+        "Obra": obra,
+        "Fornecedor": fornecedor,
+        "Qtd (Ton)": quantidade,
+        "KM": km,
+        "KM Total": km_total_viagem,
+        "Pedágio (R$)": pedagio,
+        "Valor Frete (R$)": valor_frete,
+        "Total Geral (R$)": total_geral_viagem
     })
-    st.success("Frete adicionado com sucesso! Pode inserir o próximo ou descarregar a planilha abaixo.")
+    st.success("Frete adicionado com sucesso! Veja o registo na tabela abaixo.")
 
-# Se houver fretes guardados, exibe a tabela acumulada e o botão de exportar
+# Se houver fretes guardados, exibe a tabela acumulada com o Total Geral e o botão de exportar
 if len(st.session_state.lista_fretes) > 0:
     st.markdown("---")
     st.subheader(f"📋 Fretes Acumulados ({len(st.session_state.lista_fretes)} registos)")
     
-    # Exibir tabela prévia na tela
+    # Exibir tabela prévia na tela com os totais calculados
     df_preview = pd.DataFrame(st.session_state.lista_fretes)
+    
+    # Formatar colunas monetárias e numéricas na exibição visual da tabela
     st.dataframe(df_preview, use_container_width=True)
 
     col_btn1, col_btn2 = st.columns(2)
@@ -132,18 +140,18 @@ if len(st.session_state.lista_fretes) > 0:
         for i, item in enumerate(st.session_state.lista_fretes):
             r = start_row + i
             
-            ws.cell(row=r, column=1, value=item["data"]).alignment = align_center
-            ws.cell(row=r, column=2, value=item["fretista"]).alignment = align_left
-            ws.cell(row=r, column=3, value=item["obra"]).alignment = align_left
-            ws.cell(row=r, column=4, value=item["fornecedor"]).alignment = align_left
-            ws.cell(row=r, column=5, value=item["quantidade"]).alignment = align_right
-            ws.cell(row=r, column=6, value=item["km"]).alignment = align_right
+            ws.cell(row=r, column=1, value=item["Data"]).alignment = align_center
+            ws.cell(row=r, column=2, value=item["Fretista"]).alignment = align_left
+            ws.cell(row=r, column=3, value=item["Obra"]).alignment = align_left
+            ws.cell(row=r, column=4, value=item["Fornecedor"]).alignment = align_left
+            ws.cell(row=r, column=5, value=item["Qtd (Ton)"]).alignment = align_right
+            ws.cell(row=r, column=6, value=item["KM"]).alignment = align_right
             
             # FÓRMULA DE MULTIPLICAÇÃO: Quantidade x KM (Coluna G)
             ws.cell(row=r, column=7, value=f"=E{r}*F{r}").alignment = align_right
             
-            ws.cell(row=r, column=8, value=item["pedagio"]).alignment = align_right
-            ws.cell(row=r, column=9, value=item["valor_frete"]).alignment = align_right
+            ws.cell(row=r, column=8, value=item["Pedágio (R$)"]).alignment = align_right
+            ws.cell(row=r, column=9, value=item["Valor Frete (R$)"]).alignment = align_right
             
             # FÓRMULA PRINCIPAL: (KM x Quantidade x Valor do Frete) + Pedágio -> =(G * Valor_Frete) + Pedágio
             ws.cell(row=r, column=10, value=f"=(G{r}*I{r})+H{r}").alignment = align_right
