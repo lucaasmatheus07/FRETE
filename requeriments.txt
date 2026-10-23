@@ -1,3 +1,1 @@
-git add requirements.txt
-git commit -m "Adiciona requirements.txt com openpyxl"
-git push origin main
+
