@@ -12,7 +12,7 @@ st.set_page_config(
 )
 
 st.title("🚚 Sistema de Controlo de Fretes e Logística")
-st.markdown("Insira os dados abaixo. O sistema calcula a **multiplicação (KM x Quantidade x Valor do Frete) somada ao Pedágio** em tempo real.")
+st.markdown("Insira os dados abaixo. O sistema calcula o **Total Geral** em tempo real e gera a sua planilha Excel.")
 
 with st.form("frete_form"):
     st.subheader("Adicionar Novo Frete")
@@ -35,13 +35,13 @@ with st.form("frete_form"):
 
     # --- CÁLCULO EM TEMPO REAL: (KM * Quantidade * Valor do Frete) + Pedágio ---
     total_geral_preview = (km * quantidade * valor_frete) + pedagio
-    km_total_preview = quantidade * km
 
     st.markdown("---")
-    st.markdown("### 📊 Pré-visualização dos Cálculos Automáticos:")
-    prev_col1, prev_col2 = st.columns(2)
-    prev_col1.metric("KM Total (Qtd x KM)", f"{km_total_preview:.2f} KM")
-    prev_col2.metric("Total Geral (R$)", f"R$ {total_geral_preview:,.2f}")
+    st.markdown("### 📊 Pré-visualização do Cálculo Automático:")
+    
+    # Exibe apenas o Total Geral na tela, removendo o KM Total
+    st.metric("Total Geral (R$)", f"R$ {total_geral_preview:,.2f}")
+    
     st.markdown("---")
         
     submitted = st.form_submit_button("Gerar e Descarregar Planilha Excel")
@@ -122,8 +122,7 @@ if submitted:
             ws.cell(row=r, column=8, value=ped).alignment = align_right
             ws.cell(row=r, column=9, value=v_frete).alignment = align_right
             
-            # FÓRMULA PRINCIPAL SOLICITADA: (KM x Quantidade x Valor do Frete) + Pedágio
-            # Como a coluna G já é (E * F), podemos fazer =(G{r} * I{r}) + H{r}
+            # FÓRMULA PRINCIPAL: (KM x Quantidade x Valor do Frete) + Pedágio -> =(G * Valor_Frete) + Pedágio
             ws.cell(row=r, column=10, value=f"=(G{r}*I{r})+H{r}").alignment = align_right
             
             ws.cell(row=r, column=1).number_format = "yyyy-mm-dd"
