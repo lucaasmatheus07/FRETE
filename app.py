@@ -12,7 +12,7 @@ st.set_page_config(
 )
 
 st.title("🚚 Sistema de Controlo de Fretes e Logística")
-st.markdown("Insira os dados abaixo para gerar e transferir a sua planilha Excel com cálculos automáticos.")
+st.markdown("Insira os dados abaixo. O sistema calcula os totais **em tempo real** e gera a sua planilha Excel formatada.")
 
 with st.form("frete_form"):
     st.subheader("Adicionar Novo Frete")
@@ -25,14 +25,25 @@ with st.form("frete_form"):
         
     with col2:
         fornecedor = st.text_input("Fornecedor", "Pedreira Vale")
-        quantidade = st.number_input("Quantidade", min_value=1, value=5)
+        quantidade = st.number_input("Quantidade", min_value=1, value=5, step=1)
         km = st.number_input("KM (Quilometragem)", min_value=0.0, value=45.0, format="%.1f")
         
     with col3:
         pedagio = st.number_input("Valor do Pedágio (R$)", min_value=0.0, value=12.50, format="%.2f")
         valor_frete = st.number_input("Valor do Frete (R$)", min_value=0.0, value=150.00, format="%.2f")
+
+    # --- CÁLCULO EM TEMPO REAL NA TELA ---
+    km_total_preview = quantidade * km
+    total_geral_preview = km_total_preview + pedagio + valor_frete
+
+    st.markdown("---")
+    st.markdown("### 📊 Pré-visualização do Cálculo Automático:")
+    prev_col1, prev_col2 = st.columns(2)
+    prev_col1.metric("KM Total (Qtd x KM)", f"{km_total_preview:.1f} KM")
+    prev_col2.metric("Total Geral (R$)", f"R$ {total_geral_preview:,.2f}")
+    st.markdown("---")
         
-    submitted = st.form_submit_button("Gerar Planilha Excel")
+    submitted = st.form_submit_button("Gerar e Descarregar Planilha Excel")
 
 if submitted:
     try:
@@ -111,7 +122,6 @@ if submitted:
             ws.cell(row=r, column=9, value=v_frete).alignment = align_right
             
             # FÓRMULA 2: (Quantidade * KM) + Pedágio + Valor do Frete (Coluna J)
-            # Nota: Como G(KM Total) já é E*F, podemos usar =(G{r}) + H{r} + I{r} ou =(E{r}*F{r})+H{r}+I{r}
             ws.cell(row=r, column=10, value=f"=G{r}+H{r}+I{r}").alignment = align_right
             
             ws.cell(row=r, column=1).number_format = "yyyy-mm-dd"
