@@ -12,7 +12,7 @@ st.set_page_config(
 )
 
 st.title("🚚 Sistema de Controlo de Fretes e Logística")
-st.markdown("Insira os dados abaixo. O sistema calcula os totais **em tempo real** e gera a sua planilha Excel formatada.")
+st.markdown("Insira os dados abaixo. O sistema aplica **soma e multiplicação automáticas** em tempo real e gera a sua planilha Excel.")
 
 with st.form("frete_form"):
     st.subheader("Adicionar Novo Frete")
@@ -25,22 +25,23 @@ with st.form("frete_form"):
         
     with col2:
         fornecedor = st.text_input("Fornecedor", "Pedreira Vale")
-        quantidade = st.number_input("Quantidade", min_value=1, value=5, step=1)
+        # Quantidade em toneladas permitindo números quebrados (ex: 2.75 t)
+        quantidade = st.number_input("Quantidade (Ton)", min_value=0.0, value=5.5, step=0.1, format="%.2f")
         km = st.number_input("KM (Quilometragem)", min_value=0.0, value=45.0, format="%.1f")
         
     with col3:
         pedagio = st.number_input("Valor do Pedágio (R$)", min_value=0.0, value=12.50, format="%.2f")
         valor_frete = st.number_input("Valor do Frete (R$)", min_value=0.0, value=150.00, format="%.2f")
 
-    # --- CÁLCULO EM TEMPO REAL NA TELA ---
-    km_total_preview = quantidade * km
-    total_geral_preview = km_total_preview + pedagio + valor_frete
+    # --- CÁLCULO EM TEMPO REAL (MULTIPLICAÇÃO E SOMA) ---
+    km_total_preview = quantidade * km  # Multiplicação
+    total_geral_preview = km_total_preview + pedagio + valor_frete  # Soma
 
     st.markdown("---")
-    st.markdown("### 📊 Pré-visualização do Cálculo Automático:")
+    st.markdown("### 📊 Pré-visualização dos Cálculos Automáticos:")
     prev_col1, prev_col2 = st.columns(2)
-    prev_col1.metric("KM Total (Qtd x KM)", f"{km_total_preview:.1f} KM")
-    prev_col2.metric("Total Geral (R$)", f"R$ {total_geral_preview:,.2f}")
+    prev_col1.metric("Multiplicação (Qtd x KM)", f"{km_total_preview:.2f} KM")
+    prev_col2.metric("Soma Total Geral (R$)", f"R$ {total_geral_preview:,.2f}")
     st.markdown("---")
         
     submitted = st.form_submit_button("Gerar e Descarregar Planilha Excel")
@@ -87,7 +88,7 @@ if submitted:
 
         headers = [
             "Data", "Fretista", "Obra", "Fornecedor", 
-            "Quantidade", "KM", "KM Total (Qtd x KM)", 
+            "Quantidade (Ton)", "KM", "KM Total (Qtd x KM)", 
             "Pedágio (R$)", "Valor do Frete (R$)", "Total Geral (R$)"
         ]
 
@@ -98,7 +99,7 @@ if submitted:
             cell.alignment = align_center
             cell.border = thin_border
 
-        # Dados inseridos pelo usuário
+        # Dados inseridos pelo utilizador
         dados_exemplo = [
             (str(data_frete), fretista, obra, fornecedor, quantidade, km, pedagio, valor_frete),
         ]
@@ -115,19 +116,19 @@ if submitted:
             ws.cell(row=r, column=5, value=q).alignment = align_right
             ws.cell(row=r, column=6, value=k).alignment = align_right
             
-            # FÓRMULA 1: Multiplica Quantidade por KM (Coluna G)
+            # FÓRMULA DE MULTIPLICAÇÃO: Quantidade x KM (Coluna G)
             ws.cell(row=r, column=7, value=f"=E{r}*F{r}").alignment = align_right
             
             ws.cell(row=r, column=8, value=ped).alignment = align_right
             ws.cell(row=r, column=9, value=v_frete).alignment = align_right
             
-            # FÓRMULA 2: (Quantidade * KM) + Pedágio + Valor do Frete (Coluna J)
+            # FÓRMULA DE SOMA E MULTIPLICAÇÃO: (KM Total) + Pedágio + Valor do Frete (Coluna J)
             ws.cell(row=r, column=10, value=f"=G{r}+H{r}+I{r}").alignment = align_right
             
             ws.cell(row=r, column=1).number_format = "yyyy-mm-dd"
-            ws.cell(row=r, column=5).number_format = "#,##0"
+            ws.cell(row=r, column=5).number_format = "#,##0.00"
             ws.cell(row=r, column=6).number_format = "#,##0.0"
-            ws.cell(row=r, column=7).number_format = "#,##0.0"
+            ws.cell(row=r, column=7).number_format = "#,##0.00"
             ws.cell(row=r, column=8).number_format = 'R$ #,##0.00'
             ws.cell(row=r, column=9).number_format = 'R$ #,##0.00'
             ws.cell(row=r, column=10).number_format = 'R$ #,##0.00'
@@ -145,6 +146,9 @@ if submitted:
         ws.cell(row=tot_row, column=8, value=f"=SUM(H{start_row}:H{tot_row-1})")
         ws.cell(row=tot_row, column=9, value=f"=SUM(I{start_row}:I{tot_row-1})")
         ws.cell(row=tot_row, column=10, value=f"=SUM(J{start_row}:J{tot_row-1})")
+
+        ws.cell(row=tot_row, column=5).number_format = "#,##0.00"
+        ws.cell(row=tot_row, column=7).number_format = "#,##0.00"
 
         for c in range(1, 11):
             cell = ws.cell(row=tot_row, column=c)
