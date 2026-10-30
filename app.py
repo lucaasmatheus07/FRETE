@@ -38,11 +38,14 @@ with st.form("frete_form", clear_on_submit=True):
         km = st.number_input("KM (Quilometragem)", min_value=0.0, value=45.0, format="%.1f")
         pedagio = st.number_input("Valor do Pedágio (R$)", min_value=0.0, value=12.50, format="%.2f")
         valor_frete = st.number_input("Valor do Frete (R$)", min_value=0.0, value=4.00, format="%.2f")
-        desconto = st.number_input("Desconto (R$)", min_value=0.0, value=0.00, format="%.2f")
+        
+        # Seleção do tipo de desconto e o valor
+        tipo_desconto = st.selectbox("Tipo de Desconto", ["Nenhum", "Diesel", "Marmitex"])
+        valor_desconto = st.number_input("Valor do Desconto (R$)", min_value=0.0, value=0.00, format="%.2f")
 
-    # --- CÁLCULO EM TEMPO REAL: ((KM * Quantidade * Valor do Frete) + Pedágio) - Desconto ---
+    # --- CÁLCULO EM TEMPO REAL: ((KM * Quantidade * Valor do Frete) + Pedágio) - Valor do Desconto ---
     subtotal_preview = (km * quantidade * valor_frete) + pedagio
-    total_geral_preview = subtotal_preview - desconto
+    total_geral_preview = subtotal_preview - valor_desconto
 
     st.markdown("---")
     st.markdown(f"**Pré-visualização do Total deste Frete (com desconto):** R$ {total_geral_preview:,.2f}")
@@ -51,7 +54,7 @@ with st.form("frete_form", clear_on_submit=True):
 
 if submitted_add:
     subtotal_viagem = (km * quantidade * valor_frete) + pedagio
-    total_geral_viagem = subtotal_viagem - desconto
+    total_geral_viagem = subtotal_viagem - valor_desconto
     km_total_viagem = quantidade * km
 
     st.session_state.lista_fretes.append({
@@ -66,7 +69,8 @@ if submitted_add:
         "KM Total": km_total_viagem,
         "Pedágio (R$)": pedagio,
         "Valor Frete (R$)": valor_frete,
-        "Desconto (R$)": desconto,
+        "Tipo Desconto": tipo_desconto,
+        "Desconto (R$)": valor_desconto,
         "Total Geral (R$)": total_geral_viagem
     })
     st.success("Frete adicionado com sucesso!")
@@ -120,14 +124,14 @@ if len(st.session_state.lista_fretes) > 0:
         align_left = Alignment(horizontal="left", vertical="center")
         align_right = Alignment(horizontal="right", vertical="center")
 
-        ws.merge_cells("A1:M1")
+        ws.merge_cells("A1:N1")
         ws["A1"] = "REGISTRO DE CONTROLE DE FRETES E LOGÍSTICA"
         ws["A1"].font = font_title
 
         headers = [
             "Data", "Fretista", "Placa", "Obra", "Fornecedor", "Nota Fiscal", 
             "Quantidade (Ton)", "KM", "KM Total (Qtd x KM)", 
-            "Pedágio (R$)", "Valor do Frete (R$)", "Desconto (R$)", "Total Geral (R$)"
+            "Pedágio (R$)", "Valor do Frete (R$)", "Tipo Desconto", "Desconto (R$)", "Total Geral (R$)"
         ]
 
         for col_idx, header in enumerate(headers, 1):
@@ -150,12 +154,13 @@ if len(st.session_state.lista_fretes) > 0:
             ws.cell(row=r, column=7, value=item["Qtd (Ton)"]).alignment = align_right
             ws.cell(row=r, column=8, value=item["KM"]).alignment = align_right
             
-            # Fórmulas Excel
+            # Fórmulas Excel ajustadas para a nova coluna (Coluna M = Desconto, Coluna N = Total Geral)
             ws.cell(row=r, column=9, value=f"=G{r}*H{r}").alignment = align_right
             ws.cell(row=r, column=10, value=item["Pedágio (R$)"]).alignment = align_right
             ws.cell(row=r, column=11, value=item["Valor Frete (R$)"]).alignment = align_right
-            ws.cell(row=r, column=12, value=item["Desconto (R$)"]).alignment = align_right
-            ws.cell(row=r, column=13, value=f"=((I{r}*K{r})+J{r})-L{r}").alignment = align_right
+            ws.cell(row=r, column=12, value=item["Tipo Desconto"]).alignment = align_center
+            ws.cell(row=r, column=13, value=item["Desconto (R$)"]).alignment = align_right
+            ws.cell(row=r, column=14, value=f"=((I{r}*K{r})+J{r})-M{r}").alignment = align_right
             
             # Formatação numérica
             ws.cell(row=r, column=1).number_format = "yyyy-mm-dd"
@@ -164,10 +169,10 @@ if len(st.session_state.lista_fretes) > 0:
             ws.cell(row=r, column=9).number_format = "#,##0.00"
             ws.cell(row=r, column=10).number_format = 'R$ #,##0.00'
             ws.cell(row=r, column=11).number_format = 'R$ #,##0.00'
-            ws.cell(row=r, column=12).number_format = 'R$ #,##0.00'
             ws.cell(row=r, column=13).number_format = 'R$ #,##0.00'
+            ws.cell(row=r, column=14).number_format = 'R$ #,##0.00'
             
-            for c in range(1, 14):
+            for c in range(1, 15):
                 cell = ws.cell(row=r, column=c)
                 cell.font = font_regular
                 cell.border = thin_border
@@ -181,8 +186,8 @@ if len(st.session_state.lista_fretes) > 0:
         ws.cell(row=tot_row, column=9, value=f"=SUM(I{start_row}:I{tot_row-1})")
         ws.cell(row=tot_row, column=10, value=f"=SUM(J{start_row}:J{tot_row-1})")
         ws.cell(row=tot_row, column=11, value=f"=AVERAGE(K{start_row}:K{tot_row-1})")
-        ws.cell(row=tot_row, column=12, value=f"=SUM(L{start_row}:L{tot_row-1})")
         ws.cell(row=tot_row, column=13, value=f"=SUM(M{start_row}:M{tot_row-1})")
+        ws.cell(row=tot_row, column=14, value=f"=SUM(N{start_row}:N{tot_row-1})")
 
         # Formatos da linha total
         ws.cell(row=tot_row, column=7).number_format = "#,##0.00"
@@ -190,10 +195,10 @@ if len(st.session_state.lista_fretes) > 0:
         ws.cell(row=tot_row, column=9).number_format = "#,##0.00"
         ws.cell(row=tot_row, column=10).number_format = 'R$ #,##0.00'
         ws.cell(row=tot_row, column=11).number_format = 'R$ #,##0.00'
-        ws.cell(row=tot_row, column=12).number_format = 'R$ #,##0.00'
         ws.cell(row=tot_row, column=13).number_format = 'R$ #,##0.00'
+        ws.cell(row=tot_row, column=14).number_format = 'R$ #,##0.00'
 
-        for c in range(1, 14):
+        for c in range(1, 15):
             cell = ws.cell(row=tot_row, column=c)
             cell.font = font_bold
             cell.fill = fill_total
