@@ -65,7 +65,7 @@ st.markdown("""
             font-weight: 700 !important;
         }
 
-        /* Botões de Ação (Adicionar e Limpar) com fundo BRANCO e borda azul/cinza */
+        /* Botões de Ação com fundo BRANCO e borda azul/cinza */
         div.stButton > button, div[data-testid="stFormSubmitButton"] > button {
             background-color: #FFFFFF !important;
             color: #00234B !important;
@@ -105,11 +105,11 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- CABEÇALHO COM LOGÓTIPO E TEMA VISUAL ---
+# --- CABEÇALHO COM LOGÓTIPO DA RAIZ DO GITHUB E TEMA VISUAL ---
 col_logo, col_title = st.columns([1, 5])
 with col_logo:
     try:
-        st.image("image_07fb02.png", width=130) # Logótipo da Ellenco[cite: 3]
+        st.image("ellenco.png", width=130) # Carrega direto da raiz do GitHub
     except Exception:
         st.write("🚚 **ELLENCO**")
 
