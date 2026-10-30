@@ -13,7 +13,7 @@ st.set_page_config(
 )
 
 st.title("🚚 Sistema de Controlo de Fretes e Logística")
-st.markdown("Insira e **guarde os fretes um por um**. O valor total de cada viagem aparece na tabela abaixo.")
+st.markdown("Insira e **guarde os fretes um por um**. Pode consultar, eliminar registos individuais ou descarregar o relatório.")
 
 # Inicializar a lista de fretes na memória da sessão
 if "lista_fretes" not in st.session_state:
@@ -26,29 +26,32 @@ with st.form("frete_form", clear_on_submit=True):
     with col1:
         data_frete = st.date_input("Data do Frete")
         fretista = st.text_input("Nome do Fretista", "Carlos Silva")
-        placa_veiculo = st.text_input("Placa do Veículo", "ABC-1234") # Novo campo
+        placa_veiculo = st.text_input("Placa do Veículo", "ABC-1234")
         
     with col2:
         obra = st.text_input("Obra", "Obra Residencial Alpha")
         fornecedor = st.text_input("Fornecedor", "Ellenco")
-        nota_fiscal = st.text_input("Nota Fiscal (NF)", "12345") # Novo campo
+        nota_fiscal = st.text_input("Nota Fiscal (NF)", "12345")
         
     with col3:
         quantidade = st.number_input("Quantidade (Ton)", min_value=0.0, value=2.5, step=0.1, format="%.2f")
         km = st.number_input("KM (Quilometragem)", min_value=0.0, value=45.0, format="%.1f")
         pedagio = st.number_input("Valor do Pedágio (R$)", min_value=0.0, value=12.50, format="%.2f")
         valor_frete = st.number_input("Valor do Frete (R$)", min_value=0.0, value=4.00, format="%.2f")
+        desconto = st.number_input("Desconto (R$)", min_value=0.0, value=0.00, format="%.2f") # Novo campo de desconto
 
-    # --- CÁLCULO EM TEMPO REAL: (KM * Quantidade * Valor do Frete) + Pedágio ---
-    total_geral_preview = (km * quantidade * valor_frete) + pedagio
+    # --- CÁLCULO EM TEMPO REAL: ((KM * Quantidade * Valor do Frete) + Pedágio) - Desconto ---
+    subtotal_preview = (km * quantidade * valor_frete) + pedagio
+    total_geral_preview = subtotal_preview - desconto
 
     st.markdown("---")
-    st.markdown(f"**Pré-visualização do Total deste Frete:** R$ {total_geral_preview:,.2f}")
+    st.markdown(f"**Pré-visualização do Total deste Frete (com desconto):** R$ {total_geral_preview:,.2f}")
     
     submitted_add = st.form_submit_button("➕ Adicionar Este Frete à Lista")
 
 if submitted_add:
-    total_geral_viagem = (km * quantidade * valor_frete) + pedagio
+    subtotal_viagem = (km * quantidade * valor_frete) + pedagio
+    total_geral_viagem = subtotal_viagem - desconto
     km_total_viagem = quantidade * km
 
     st.session_state.lista_fretes.append({
@@ -63,21 +66,41 @@ if submitted_add:
         "KM Total": km_total_viagem,
         "Pedágio (R$)": pedagio,
         "Valor Frete (R$)": valor_frete,
+        "Desconto (R$)": desconto,
         "Total Geral (R$)": total_geral_viagem
     })
-    st.success("Frete adicionado com sucesso! Veja o registo na tabela abaixo.")
+    st.success("Frete adicionado com sucesso!")
+    st.rerun()
 
-# Se houver fretes guardados, exibe a tabela acumulada com o Total Geral e o botão de exportar
+# Se houver fretes guardados, exibe a tabela acumulada e opções de exclusão / exportação
 if len(st.session_state.lista_fretes) > 0:
     st.markdown("---")
     st.subheader(f"📋 Fretes Acumulados ({len(st.session_state.lista_fretes)} registos)")
     
+    # Exibir itens com opção de exclusão individual linha por linha
+    for idx, item in enumerate(st.session_state.lista_fretes):
+        with st.container():
+            col_info, col_del = st.columns([8, 1])
+            with col_info:
+                st.text(
+                    f"#{idx+1} | Data: {item['Data']} | Fretista: {item['Fretista']} | "
+                    f"Placa: {item['Placa']} | Obra: {item['Obra']} | Desconto: R$ {item['Desconto (R$)']:,.2f} | Total: R$ {item['Total Geral (R$)']:,.2f}"
+                )
+            with col_del:
+                if st.button("🗑️ Excluir", key=f"del_{idx}"):
+                    st.session_state.lista_fretes.pop(idx)
+                    st.success(f"Registo #{idx+1} excluído com sucesso!")
+                    st.rerun()
+
+    st.markdown("---")
+    
+    # Exibir tabela completa resumida em DataFrame
     df_preview = pd.DataFrame(st.session_state.lista_fretes)
     st.dataframe(df_preview, use_container_width=True)
 
     col_btn1, col_btn2 = st.columns(2)
 
-    # Botão para limpar a lista
+    # Botão para limpar toda a lista
     if col_btn1.button("🗑️ Limpar Todos os Registos"):
         st.session_state.lista_fretes = []
         st.rerun()
@@ -114,14 +137,14 @@ if len(st.session_state.lista_fretes) > 0:
         align_left = Alignment(horizontal="left", vertical="center")
         align_right = Alignment(horizontal="right", vertical="center")
 
-        ws.merge_cells("A1:L1")
+        ws.merge_cells("A1:M1")
         ws["A1"] = "REGISTRO DE CONTROLE DE FRETES E LOGÍSTICA"
         ws["A1"].font = font_title
 
         headers = [
             "Data", "Fretista", "Placa", "Obra", "Fornecedor", "Nota Fiscal", 
             "Quantidade (Ton)", "KM", "KM Total (Qtd x KM)", 
-            "Pedágio (R$)", "Valor do Frete (R$)", "Total Geral (R$)"
+            "Pedágio (R$)", "Valor do Frete (R$)", "Desconto (R$)", "Total Geral (R$)"
         ]
 
         for col_idx, header in enumerate(headers, 1):
@@ -144,11 +167,12 @@ if len(st.session_state.lista_fretes) > 0:
             ws.cell(row=r, column=7, value=item["Qtd (Ton)"]).alignment = align_right
             ws.cell(row=r, column=8, value=item["KM"]).alignment = align_right
             
-            # Fórmulas ajustadas para as novas colunas
-            ws.cell(row=r, column=9, value=f"=G{r}*H{r}").alignment = align_right  # KM Total
+            # Fórmulas ajustadas incluindo a coluna L (Desconto)
+            ws.cell(row=r, column=9, value=f"=G{r}*H{r}").alignment = align_right
             ws.cell(row=r, column=10, value=item["Pedágio (R$)"]).alignment = align_right
             ws.cell(row=r, column=11, value=item["Valor Frete (R$)"]).alignment = align_right
-            ws.cell(row=r, column=12, value=f"=(I{r}*K{r})+J{r}").alignment = align_right  # Total Geral
+            ws.cell(row=r, column=12, value=item["Desconto (R$)"]).alignment = align_right
+            ws.cell(row=r, column=13, value=f"=((I{r}*K{r})+J{r})-L{r}").alignment = align_right
             
             # Formatação numérica
             ws.cell(row=r, column=1).number_format = "yyyy-mm-dd"
@@ -158,8 +182,9 @@ if len(st.session_state.lista_fretes) > 0:
             ws.cell(row=r, column=10).number_format = 'R$ #,##0.00'
             ws.cell(row=r, column=11).number_format = 'R$ #,##0.00'
             ws.cell(row=r, column=12).number_format = 'R$ #,##0.00'
+            ws.cell(row=r, column=13).number_format = 'R$ #,##0.00'
             
-            for c in range(1, 13):
+            for c in range(1, 14):
                 cell = ws.cell(row=r, column=c)
                 cell.font = font_regular
                 cell.border = thin_border
@@ -174,6 +199,7 @@ if len(st.session_state.lista_fretes) > 0:
         ws.cell(row=tot_row, column=10, value=f"=SUM(J{start_row}:J{tot_row-1})")
         ws.cell(row=tot_row, column=11, value=f"=AVERAGE(K{start_row}:K{tot_row-1})")
         ws.cell(row=tot_row, column=12, value=f"=SUM(L{start_row}:L{tot_row-1})")
+        ws.cell(row=tot_row, column=13, value=f"=SUM(M{start_row}:M{tot_row-1})")
 
         # Formatos da linha total
         ws.cell(row=tot_row, column=7).number_format = "#,##0.00"
@@ -182,8 +208,9 @@ if len(st.session_state.lista_fretes) > 0:
         ws.cell(row=tot_row, column=10).number_format = 'R$ #,##0.00'
         ws.cell(row=tot_row, column=11).number_format = 'R$ #,##0.00'
         ws.cell(row=tot_row, column=12).number_format = 'R$ #,##0.00'
+        ws.cell(row=tot_row, column=13).number_format = 'R$ #,##0.00'
 
-        for c in range(1, 13):
+        for c in range(1, 14):
             cell = ws.cell(row=tot_row, column=c)
             cell.font = font_bold
             cell.fill = fill_total
