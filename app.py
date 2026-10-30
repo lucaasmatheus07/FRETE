@@ -294,3 +294,90 @@ if len(st.session_state.lista_fretes) > 0:
             "Data", "Fretista", "Placa", "Obra", "Fornecedor", "Nota Fiscal", "Nº Vale",
             "Quantidade (Ton)", "KM", "KM Total (Qtd x KM)", 
             "Pedágio (R$)", "Valor do Frete (R$)", "Tipo Desconto", "Desconto (R$)", "Total Geral (R$)"
+        ]
+
+        for col_idx, header in enumerate(headers, 1):
+            cell = ws.cell(row=3, column=col_idx, value=header)
+            cell.font = font_header
+            cell.fill = fill_header
+            cell.alignment = align_center
+            cell.border = thin_border
+
+        start_row = 4
+        for i, item in enumerate(st.session_state.lista_fretes):
+            r = start_row + i
+            
+            ws.cell(row=r, column=1, value=str(item.get("Data", ""))).alignment = align_center
+            ws.cell(row=r, column=2, value=str(item.get("Fretista", ""))).alignment = align_left
+            ws.cell(row=r, column=3, value=str(item.get("Placa", ""))).alignment = align_center
+            ws.cell(row=r, column=4, value=str(item.get("Obra", ""))).alignment = align_center
+            ws.cell(row=r, column=5, value=str(item.get("Fornecedor", ""))).alignment = align_left
+            ws.cell(row=r, column=6, value=str(item.get("NF", ""))).alignment = align_center
+            ws.cell(row=r, column=7, value=str(item.get("Nº Vale", ""))).alignment = align_center
+            ws.cell(row=r, column=8, value=item.get("Qtd (Ton)", 0)).alignment = align_right
+            ws.cell(row=r, column=9, value=item.get("KM", 0)).alignment = align_right
+            
+            ws.cell(row=r, column=10, value=f"=H{r}*I{r}").alignment = align_right
+            ws.cell(row=r, column=11, value=item.get("Pedágio (R$)", 0)).alignment = align_right
+            ws.cell(row=r, column=12, value=item.get("Valor Frete (R$)", 0)).alignment = align_right
+            ws.cell(row=r, column=13, value=str(item.get("Tipo Desconto", "Nenhum"))).alignment = align_center
+            ws.cell(row=r, column=14, value=item.get("Desconto (R$)", 0)).alignment = align_right
+            ws.cell(row=r, column=15, value=f"=((J{r}*L{r})+K{r})-N{r}").alignment = align_right
+            
+            ws.cell(row=r, column=8).number_format = "#,##0.00"
+            ws.cell(row=r, column=9).number_format = "#,##0.0"
+            ws.cell(row=r, column=10).number_format = "#,##0.00"
+            ws.cell(row=r, column=11).number_format = 'R$ #,##0.00'
+            ws.cell(row=r, column=12).number_format = 'R$ #,##0.00'
+            ws.cell(row=r, column=14).number_format = 'R$ #,##0.00'
+            ws.cell(row=r, column=15).number_format = 'R$ #,##0.00'
+            
+            for c in range(1, 16):
+                cell = ws.cell(row=r, column=c)
+                cell.font = font_regular
+                cell.border = thin_border
+                if i % 2 == 1:
+                    cell.fill = fill_zebra
+
+        tot_row = start_row + len(st.session_state.lista_fretes)
+        ws.cell(row=tot_row, column=1, value="TOTAL GERAL").font = font_bold
+        ws.cell(row=tot_row, column=8, value=f"=SUM(H{start_row}:H{tot_row-1})")
+        ws.cell(row=tot_row, column=9, value=f"=SUM(I{start_row}:I{tot_row-1})")
+        ws.cell(row=tot_row, column=10, value=f"=SUM(J{start_row}:J{tot_row-1})")
+        ws.cell(row=tot_row, column=11, value=f"=SUM(K{start_row}:K{tot_row-1})")
+        ws.cell(row=tot_row, column=12, value=f"=AVERAGE(L{start_row}:L{tot_row-1})")
+        ws.cell(row=tot_row, column=14, value=f"=SUM(N{start_row}:N{tot_row-1})")
+        ws.cell(row=tot_row, column=15, value=f"=SUM(O{start_row}:O{tot_row-1})")
+
+        ws.cell(row=tot_row, column=8).number_format = "#,##0.00"
+        ws.cell(row=tot_row, column=9).number_format = "#,##0.0"
+        ws.cell(row=tot_row, column=10).number_format = "#,##0.00"
+        ws.cell(row=tot_row, column=11).number_format = 'R$ #,##0.00'
+        ws.cell(row=tot_row, column=12).number_format = 'R$ #,##0.00'
+        ws.cell(row=tot_row, column=14).number_format = 'R$ #,##0.00'
+        ws.cell(row=tot_row, column=15).number_format = 'R$ #,##0.00'
+
+        for c in range(1, 16):
+            cell = ws.cell(row=tot_row, column=c)
+            cell.font = font_bold
+            cell.fill = fill_total
+            cell.border = thin_border
+
+        for col in ws.columns:
+            max_len = max(len(str(cell.value or '')) for cell in col)
+            col_letter = get_column_letter(col[0].column)
+            ws.column_dimensions[col_letter].width = max(max_len + 4, 15)
+
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+
+        col_btn2.download_button(
+            label="📥 Descarregar Planilha Consolidada",
+            data=output,
+            file_name="Controle_de_Fretes_Ellenco.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True
+        )
+    except Exception as e:
+        st.error(f"Ocorreu um erro ao gerar o arquivo Excel: {e}")
