@@ -194,4 +194,55 @@ if len(st.session_state.lista_fretes) > 0:
             ws.cell(row=r, column=10).number_format = 'R$ #,##0.00'
             ws.cell(row=r, column=11).number_format = 'R$ #,##0.00'
             ws.cell(row=r, column=13).number_format = 'R$ #,##0.00'
-            ws.cell(row=r,
+            ws.cell(row=r, column=14).number_format = 'R$ #,##0.00'
+            
+            for c in range(1, 15):
+                cell = ws.cell(row=r, column=c)
+                cell.font = font_regular
+                cell.border = thin_border
+                if i % 2 == 1:
+                    cell.fill = fill_zebra
+
+        tot_row = start_row + len(st.session_state.lista_fretes)
+        ws.cell(row=tot_row, column=1, value="TOTAL GERAL").font = font_bold
+        ws.cell(row=tot_row, column=7, value=f"=SUM(G{start_row}:G{tot_row-1})")
+        ws.cell(row=tot_row, column=8, value=f"=SUM(H{start_row}:H{tot_row-1})")
+        ws.cell(row=tot_row, column=9, value=f"=SUM(I{start_row}:I{tot_row-1})")
+        ws.cell(row=tot_row, column=10, value=f"=SUM(J{start_row}:J{tot_row-1})")
+        ws.cell(row=tot_row, column=11, value=f"=AVERAGE(K{start_row}:K{tot_row-1})")
+        ws.cell(row=tot_row, column=13, value=f"=SUM(M{start_row}:M{tot_row-1})")
+        ws.cell(row=tot_row, column=14, value=f"=SUM(N{start_row}:N{tot_row-1})")
+
+        # Formatos da linha total
+        ws.cell(row=tot_row, column=7).number_format = "#,##0.00"
+        ws.cell(row=tot_row, column=8).number_format = "#,##0.0"
+        ws.cell(row=tot_row, column=9).number_format = "#,##0.00"
+        ws.cell(row=tot_row, column=10).number_format = 'R$ #,##0.00'
+        ws.cell(row=tot_row, column=11).number_format = 'R$ #,##0.00'
+        ws.cell(row=tot_row, column=13).number_format = 'R$ #,##0.00'
+        ws.cell(row=tot_row, column=14).number_format = 'R$ #,##0.00'
+
+        for c in range(1, 15):
+            cell = ws.cell(row=tot_row, column=c)
+            cell.font = font_bold
+            cell.fill = fill_total
+            cell.border = thin_border
+
+        for col in ws.columns:
+            max_len = max(len(str(cell.value or '')) for cell in col)
+            col_letter = get_column_letter(col[0].column)
+            ws.column_dimensions[col_letter].width = max(max_len + 4, 15)
+
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+
+        col_btn2.download_button(
+            label="📥 Descarregar Planilha Consolidada",
+            data=output,
+            file_name="Controle_de_Fretes.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True
+        )
+    except Exception as e:
+        st.error(f"Ocorreu um erro ao gerar o arquivo Excel: {e}")
