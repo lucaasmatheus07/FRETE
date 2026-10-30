@@ -35,6 +35,7 @@ with st.form("frete_form", clear_on_submit=True):
         obra = st.text_input("Obra", "Obra Residencial Alpha")
         fornecedor = st.text_input("Fornecedor", "Ellenco")
         nota_fiscal = st.text_input("Nota Fiscal (NF)", "12345")
+        num_vale = st.text_input("Número do Vale", "V-001") # Novo campo para o número do vale
         
     with col3:
         quantidade = st.number_input("Quantidade (Ton)", min_value=0.0, value=2.5, step=0.1, format="%.2f")
@@ -66,6 +67,7 @@ if submitted_add:
         "Obra": obra,
         "Fornecedor": fornecedor,
         "NF": nota_fiscal,
+        "Nº Vale": num_vale,
         "Qtd (Ton)": float(quantidade),
         "KM": float(km),
         "KM Total": float(km_total_viagem),
@@ -151,12 +153,12 @@ if len(st.session_state.lista_fretes) > 0:
         align_left = Alignment(horizontal="left", vertical="center")
         align_right = Alignment(horizontal="right", vertical="center")
 
-        ws.merge_cells("A1:N1")
+        ws.merge_cells("A1:O1")
         ws["A1"] = "REGISTRO DE CONTROLE DE FRETES E LOGÍSTICA"
         ws["A1"].font = font_title
 
         headers = [
-            "Data", "Fretista", "Placa", "Obra", "Fornecedor", "Nota Fiscal", 
+            "Data", "Fretista", "Placa", "Obra", "Fornecedor", "Nota Fiscal", "Nº Vale",
             "Quantidade (Ton)", "KM", "KM Total (Qtd x KM)", 
             "Pedágio (R$)", "Valor do Frete (R$)", "Tipo Desconto", "Desconto (R$)", "Total Geral (R$)"
         ]
@@ -178,27 +180,28 @@ if len(st.session_state.lista_fretes) > 0:
             ws.cell(row=r, column=4, value=str(item.get("Obra", ""))).alignment = align_left
             ws.cell(row=r, column=5, value=str(item.get("Fornecedor", ""))).alignment = align_left
             ws.cell(row=r, column=6, value=str(item.get("NF", ""))).alignment = align_center
-            ws.cell(row=r, column=7, value=item.get("Qtd (Ton)", 0)).alignment = align_right
-            ws.cell(row=r, column=8, value=item.get("KM", 0)).alignment = align_right
+            ws.cell(row=r, column=7, value=str(item.get("Nº Vale", ""))).alignment = align_center
+            ws.cell(row=r, column=8, value=item.get("Qtd (Ton)", 0)).alignment = align_right
+            ws.cell(row=r, column=9, value=item.get("KM", 0)).alignment = align_right
             
-            # Fórmulas Excel aplicadas nas colunas calculadas
-            ws.cell(row=r, column=9, value=f"=G{r}*H{r}").alignment = align_right
-            ws.cell(row=r, column=10, value=item.get("Pedágio (R$)", 0)).alignment = align_right
-            ws.cell(row=r, column=11, value=item.get("Valor Frete (R$)", 0)).alignment = align_right
-            ws.cell(row=r, column=12, value=str(item.get("Tipo Desconto", "Nenhum"))).alignment = align_center
-            ws.cell(row=r, column=13, value=item.get("Desconto (R$)", 0)).alignment = align_right
-            ws.cell(row=r, column=14, value=f"=((I{r}*K{r})+J{r})-M{r}").alignment = align_right
+            # Fórmulas Excel ajustadas para as novas colunas
+            ws.cell(row=r, column=10, value=f"=H{r}*I{r}").alignment = align_right
+            ws.cell(row=r, column=11, value=item.get("Pedágio (R$)", 0)).alignment = align_right
+            ws.cell(row=r, column=12, value=item.get("Valor Frete (R$)", 0)).alignment = align_right
+            ws.cell(row=r, column=13, value=str(item.get("Tipo Desconto", "Nenhum"))).alignment = align_center
+            ws.cell(row=r, column=14, value=item.get("Desconto (R$)", 0)).alignment = align_right
+            ws.cell(row=r, column=15, value=f"=((J{r}*L{r})+K{r})-N{r}").alignment = align_right
             
             # Formatação numérica
-            ws.cell(row=r, column=7).number_format = "#,##0.00"
-            ws.cell(row=r, column=8).number_format = "#,##0.0"
-            ws.cell(row=r, column=9).number_format = "#,##0.00"
-            ws.cell(row=r, column=10).number_format = 'R$ #,##0.00'
+            ws.cell(row=r, column=8).number_format = "#,##0.00"
+            ws.cell(row=r, column=9).number_format = "#,##0.0"
+            ws.cell(row=r, column=10).number_format = "#,##0.00"
             ws.cell(row=r, column=11).number_format = 'R$ #,##0.00'
-            ws.cell(row=r, column=13).number_format = 'R$ #,##0.00'
+            ws.cell(row=r, column=12).number_format = 'R$ #,##0.00'
             ws.cell(row=r, column=14).number_format = 'R$ #,##0.00'
+            ws.cell(row=r, column=15).number_format = 'R$ #,##0.00'
             
-            for c in range(1, 15):
+            for c in range(1, 16):
                 cell = ws.cell(row=r, column=c)
                 cell.font = font_regular
                 cell.border = thin_border
@@ -207,24 +210,24 @@ if len(st.session_state.lista_fretes) > 0:
 
         tot_row = start_row + len(st.session_state.lista_fretes)
         ws.cell(row=tot_row, column=1, value="TOTAL GERAL").font = font_bold
-        ws.cell(row=tot_row, column=7, value=f"=SUM(G{start_row}:G{tot_row-1})")
         ws.cell(row=tot_row, column=8, value=f"=SUM(H{start_row}:H{tot_row-1})")
         ws.cell(row=tot_row, column=9, value=f"=SUM(I{start_row}:I{tot_row-1})")
         ws.cell(row=tot_row, column=10, value=f"=SUM(J{start_row}:J{tot_row-1})")
-        ws.cell(row=tot_row, column=11, value=f"=AVERAGE(K{start_row}:K{tot_row-1})")
-        ws.cell(row=tot_row, column=13, value=f"=SUM(M{start_row}:M{tot_row-1})")
+        ws.cell(row=tot_row, column=11, value=f"=SUM(K{start_row}:K{tot_row-1})")
+        ws.cell(row=tot_row, column=12, value=f"=AVERAGE(L{start_row}:L{tot_row-1})")
         ws.cell(row=tot_row, column=14, value=f"=SUM(N{start_row}:N{tot_row-1})")
+        ws.cell(row=tot_row, column=15, value=f"=SUM(O{start_row}:O{tot_row-1})")
 
         # Formatos da linha total
-        ws.cell(row=tot_row, column=7).number_format = "#,##0.00"
-        ws.cell(row=tot_row, column=8).number_format = "#,##0.0"
-        ws.cell(row=tot_row, column=9).number_format = "#,##0.00"
-        ws.cell(row=tot_row, column=10).number_format = 'R$ #,##0.00'
+        ws.cell(row=tot_row, column=8).number_format = "#,##0.00"
+        ws.cell(row=tot_row, column=9).number_format = "#,##0.0"
+        ws.cell(row=tot_row, column=10).number_format = "#,##0.00"
         ws.cell(row=tot_row, column=11).number_format = 'R$ #,##0.00'
-        ws.cell(row=tot_row, column=13).number_format = 'R$ #,##0.00'
+        ws.cell(row=tot_row, column=12).number_format = 'R$ #,##0.00'
         ws.cell(row=tot_row, column=14).number_format = 'R$ #,##0.00'
+        ws.cell(row=tot_row, column=15).number_format = 'R$ #,##0.00'
 
-        for c in range(1, 15):
+        for c in range(1, 16):
             cell = ws.cell(row=tot_row, column=c)
             cell.font = font_bold
             cell.fill = fill_total
