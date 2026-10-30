@@ -8,19 +8,127 @@ from openpyxl.utils import get_column_letter
 
 # Configuração da página
 st.set_page_config(
-    page_title="Controle de Fretes",
+    page_title="Controle de Fretes - Ellenco",
     page_icon="🚚",
     layout="wide"
 )
 
-st.title("🚚 Sistema de Controlo de Fretes e Logística")
-st.markdown("Preencha o formulário para registar o frete. Pode editar ou excluir linhas diretamente na tabela interativa abaixo.")
+# --- ESTILIZAÇÃO CSS CUSTOMIZADA (TEMA ELLENCO) ---
+st.markdown("""
+    <style>
+        /* Cores da Ellenco: Azul Escuro #00234B | Vermelho #D9232A */
+        .stApp {
+            background-color: #f4f6f9;
+        }
+        
+        /* Cabeçalho do Título */
+        .main-header {
+            background: linear-gradient(135deg, #00234B 0%, #001530 100%);
+            padding: 20px 24px;
+            border-radius: 10px;
+            color: white;
+            border-bottom: 5px solid #D9232A;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .main-header h1 {
+            color: #FFFFFF !important;
+            font-weight: 800;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 28px;
+        }
+        
+        .main-header p {
+            color: #E0E6ED;
+            margin-top: 5px;
+            margin-bottom: 0;
+        }
+
+        /* Estilização dos Containers / Cards */
+        [data-testid="stForm"] {
+            background-color: #FFFFFF;
+            border-radius: 10px;
+            border: 1px solid #E2E8F0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            padding: 20px;
+        }
+
+        /* Títulos dentro do Formulário */
+        h5 {
+            color: #00234B !important;
+            border-left: 4px solid #D9232A;
+            padding-left: 8px;
+            margin-bottom: 12px !important;
+            font-weight: 700 !important;
+        }
+
+        /* Botão Principal de Submissão */
+        div.stButton > button, div[data-testid="stFormSubmitButton"] > button {
+            background-color: #D9232A !important;
+            color: white !important;
+            border: none !important;
+            font-weight: bold !important;
+            font-size: 16px !important;
+            border-radius: 6px !important;
+            padding: 12px 24px !important;
+            transition: all 0.3s ease !important;
+            box-shadow: 0 2px 4px rgba(217, 35, 42, 0.3) !important;
+        }
+
+        div.stButton > button:hover, div[data-testid="stFormSubmitButton"] > button:hover {
+            background-color: #B51B21 !important;
+            box-shadow: 0 4px 8px rgba(181, 27, 33, 0.4) !important;
+            transform: translateY(-1px);
+        }
+
+        /* Estilização dos Cartões de Métrica */
+        [data-testid="stMetric"] {
+            background-color: #FFFFFF;
+            padding: 15px;
+            border-radius: 8px;
+            border-top: 4px solid #00234B;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+        }
+
+        [data-testid="stMetricValue"] {
+            color: #00234B !important;
+            font-weight: bold !important;
+        }
+
+        [data-testid="stMetricLabel"] {
+            color: #4A5568 !important;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+# --- CABEÇALHO COM LOGÓTIPO E TEMA VISUAL ---
+col_logo, col_title = st.columns([1, 5])
+with col_logo:
+    # Insira o caminho do arquivo de imagem do logótipo salvo no seu projeto (ex: "logo_ellenco.png")
+    # Caso utilize a imagem enviada, certifique-se de salvá-la na mesma pasta com o nome correspondente.
+    try:
+        st.image("image_07fb02.png", width=130) # Logótipo da Ellenco[cite: 3]
+    except Exception:
+        st.write("🚚 **ELLENCO**")
+
+with col_title:
+    st.markdown("""
+        <div class="main-header" style="margin-bottom: 0px; padding: 15px 20px;">
+            <h1>Sistema de Controlo de Fretes e Logística</h1>
+            <p>Registo, gestão operacional e consolidação automática de relatórios em Excel.</p>
+        </div>
+    """, unsafe_allow_html=True)
+
+st.markdown("<br>", unsafe_allow_html=True)
 
 # Inicializar a lista de fretes na memória da sessão
 if "lista_fretes" not in st.session_state:
     st.session_state.lista_fretes = []
 
-# --- 1. FORMULÁRIO COM LAYOUT REFINADO ---
+# --- 1. FORMULÁRIO COM O TEMA ELLENCO ---
 with st.form("frete_form", clear_on_submit=True):
     st.subheader("➕ Adicionar Novo Frete")
     
@@ -43,7 +151,7 @@ with st.form("frete_form", clear_on_submit=True):
         st.markdown("##### 🏗️ Origem, Destino e Documentação")
         c1, c2, c3 = st.columns(3)
         with c1:
-            obra = st.text_input("🏗️ Obra / Destino", value="Obra Residencial Alpha")
+            obra = st.selectbox("🏗️ Obra / Destino", ["013.0427-2", "013.0434-2", "013.0437-2", "013.0438-2"])
         with c2:
             fornecedor = st.text_input("🏭 Fornecedor", value="Ellenco")
         with c3:
@@ -56,7 +164,7 @@ with st.form("frete_form", clear_on_submit=True):
         with c1:
             quantidade = st.number_input("⚖️ Quantidade (Ton)", min_value=0.0, value=2.5, step=0.1, format="%.2f")
         with c2:
-            km = st.number_input("🛣️ Distância (KM)", min_value=0.0, value=45.0, step=1.0, format="%.1f")
+            km = st.number_input("KM (Quilometragem)", min_value=0.0, value=45.0, step=1.0, format="%.1f")
         with c3:
             valor_frete = st.number_input("💵 Valor/Ton/KM (R$)", min_value=0.0, value=4.00, step=0.50, format="%.2f")
         with c4:
@@ -78,7 +186,7 @@ with st.form("frete_form", clear_on_submit=True):
 
     st.markdown("---")
     
-    # Exibição de Métricas em Destaque
+    # Exibição de Métricas
     m1, m2, m3, m4 = st.columns(4)
     m1.metric(label="KM Total (Qtd x KM)", value=f"{km_total_preview:,.2f} km")
     m2.metric(label="Subtotal da Viagem", value=f"R$ {subtotal_preview:,.2f}")
@@ -153,17 +261,18 @@ if len(st.session_state.lista_fretes) > 0:
         ws.title = "Controle de Fretes"
         ws.views.sheetView[0].showGridLines = True
 
-        NAVY = "1B365D"
+        ELLENCO_NAVY = "00234B"
+        ELLENCO_RED = "D9232A"
         TOTAL_BG = "E6EEF4"
         ZEBRA_BG = "F8FAFC"
         BORDER_GRAY = "D9D9D9"
 
-        font_title = Font(name="Segoe UI", size=16, bold=True, color=NAVY)
+        font_title = Font(name="Segoe UI", size=16, bold=True, color=ELLENCO_NAVY)
         font_header = Font(name="Segoe UI", size=11, bold=True, color="FFFFFF")
         font_regular = Font(name="Segoe UI", size=11)
-        font_bold = Font(name="Segoe UI", size=11, bold=True, color=NAVY)
+        font_bold = Font(name="Segoe UI", size=11, bold=True, color=ELLENCO_NAVY)
 
-        fill_header = PatternFill(start_color=NAVY, end_color=NAVY, fill_type="solid")
+        fill_header = PatternFill(start_color=ELLENCO_NAVY, end_color=ELLENCO_NAVY, fill_type="solid")
         fill_zebra = PatternFill(start_color=ZEBRA_BG, end_color=ZEBRA_BG, fill_type="solid")
         fill_total = PatternFill(start_color=TOTAL_BG, end_color=TOTAL_BG, fill_type="solid")
 
@@ -179,7 +288,7 @@ if len(st.session_state.lista_fretes) > 0:
         align_right = Alignment(horizontal="right", vertical="center")
 
         ws.merge_cells("A1:O1")
-        ws["A1"] = "REGISTRO DE CONTROLE DE FRETES E LOGÍSTICA"
+        ws["A1"] = "ELLENCO - REGISTRO DE CONTROLE DE FRETES E LOGÍSTICA"
         ws["A1"].font = font_title
 
         headers = [
@@ -202,7 +311,7 @@ if len(st.session_state.lista_fretes) > 0:
             ws.cell(row=r, column=1, value=str(item.get("Data", ""))).alignment = align_center
             ws.cell(row=r, column=2, value=str(item.get("Fretista", ""))).alignment = align_left
             ws.cell(row=r, column=3, value=str(item.get("Placa", ""))).alignment = align_center
-            ws.cell(row=r, column=4, value=str(item.get("Obra", ""))).alignment = align_left
+            ws.cell(row=r, column=4, value=str(item.get("Obra", ""))).alignment = align_center
             ws.cell(row=r, column=5, value=str(item.get("Fornecedor", ""))).alignment = align_left
             ws.cell(row=r, column=6, value=str(item.get("NF", ""))).alignment = align_center
             ws.cell(row=r, column=7, value=str(item.get("Nº Vale", ""))).alignment = align_center
@@ -267,7 +376,7 @@ if len(st.session_state.lista_fretes) > 0:
         col_btn2.download_button(
             label="📥 Descarregar Planilha Consolidada",
             data=output,
-            file_name="Controle_de_Fretes.xlsx",
+            file_name="Controle_de_Fretes_Ellenco.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             use_container_width=True
         )
