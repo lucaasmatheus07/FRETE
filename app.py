@@ -1,9 +1,9 @@
-import streamlit as st
+import io
 import openpyxl
 import pandas as pd
-from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+import streamlit as st
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
-import io
 
 # Configuração da página
 st.set_page_config(
@@ -26,15 +26,16 @@ with st.form("frete_form", clear_on_submit=True):
     with col1:
         data_frete = st.date_input("Data do Frete")
         fretista = st.text_input("Nome do Fretista", "Carlos Silva")
-        obra = st.text_input("Obra", "Obra Residencial Alpha")
+        placa_veiculo = st.text_input("Placa do Veículo", "ABC-1234") # Novo campo
         
     with col2:
+        obra = st.text_input("Obra", "Obra Residencial Alpha")
         fornecedor = st.text_input("Fornecedor", "Ellenco")
-        # Quantidade em toneladas (aceita números quebrados)
-        quantidade = st.number_input("Quantidade (Ton)", min_value=0.0, value=2.5, step=0.1, format="%.2f")
-        km = st.number_input("KM (Quilometragem)", min_value=0.0, value=45.0, format="%.1f")
+        nota_fiscal = st.text_input("Nota Fiscal (NF)", "12345") # Novo campo
         
     with col3:
+        quantidade = st.number_input("Quantidade (Ton)", min_value=0.0, value=2.5, step=0.1, format="%.2f")
+        km = st.number_input("KM (Quilometragem)", min_value=0.0, value=45.0, format="%.1f")
         pedagio = st.number_input("Valor do Pedágio (R$)", min_value=0.0, value=12.50, format="%.2f")
         valor_frete = st.number_input("Valor do Frete (R$)", min_value=0.0, value=4.00, format="%.2f")
 
@@ -47,16 +48,16 @@ with st.form("frete_form", clear_on_submit=True):
     submitted_add = st.form_submit_button("➕ Adicionar Este Frete à Lista")
 
 if submitted_add:
-    # Calcular o total geral da viagem para guardar na lista
     total_geral_viagem = (km * quantidade * valor_frete) + pedagio
     km_total_viagem = quantidade * km
 
-    # Adicionar o registro atual na lista da sessão
     st.session_state.lista_fretes.append({
         "Data": str(data_frete),
         "Fretista": fretista,
+        "Placa": placa_veiculo,
         "Obra": obra,
         "Fornecedor": fornecedor,
+        "NF": nota_fiscal,
         "Qtd (Ton)": quantidade,
         "KM": km,
         "KM Total": km_total_viagem,
@@ -71,10 +72,7 @@ if len(st.session_state.lista_fretes) > 0:
     st.markdown("---")
     st.subheader(f"📋 Fretes Acumulados ({len(st.session_state.lista_fretes)} registos)")
     
-    # Exibir tabela prévia na tela com os totais calculados
     df_preview = pd.DataFrame(st.session_state.lista_fretes)
-    
-    # Formatar colunas monetárias e numéricas na exibição visual da tabela
     st.dataframe(df_preview, use_container_width=True)
 
     col_btn1, col_btn2 = st.columns(2)
@@ -84,14 +82,11 @@ if len(st.session_state.lista_fretes) > 0:
         st.session_state.lista_fretes = []
         st.rerun()
 
-    # Gerar a Planilha Excel consolidada com todos os itens guardados
+    # Gerar a Planilha Excel consolidada
     try:
         wb = openpyxl.Workbook()
-        ws_dash = wb.active
-        ws_dash.title = "Resumo Geral"
-        ws_dash.views.sheetView[0].showGridLines = True
-
-        ws = wb.create_sheet(title="Controle de Fretes")
+        ws = wb.active
+        ws.title = "Controle de Fretes"
         ws.views.sheetView[0].showGridLines = True
 
         NAVY = "1B365D"
@@ -119,12 +114,12 @@ if len(st.session_state.lista_fretes) > 0:
         align_left = Alignment(horizontal="left", vertical="center")
         align_right = Alignment(horizontal="right", vertical="center")
 
-        ws.merge_cells("A1:J1")
+        ws.merge_cells("A1:L1")
         ws["A1"] = "REGISTRO DE CONTROLE DE FRETES E LOGÍSTICA"
         ws["A1"].font = font_title
 
         headers = [
-            "Data", "Fretista", "Obra", "Fornecedor", 
+            "Data", "Fretista", "Placa", "Obra", "Fornecedor", "Nota Fiscal", 
             "Quantidade (Ton)", "KM", "KM Total (Qtd x KM)", 
             "Pedágio (R$)", "Valor do Frete (R$)", "Total Geral (R$)"
         ]
@@ -142,29 +137,29 @@ if len(st.session_state.lista_fretes) > 0:
             
             ws.cell(row=r, column=1, value=item["Data"]).alignment = align_center
             ws.cell(row=r, column=2, value=item["Fretista"]).alignment = align_left
-            ws.cell(row=r, column=3, value=item["Obra"]).alignment = align_left
-            ws.cell(row=r, column=4, value=item["Fornecedor"]).alignment = align_left
-            ws.cell(row=r, column=5, value=item["Qtd (Ton)"]).alignment = align_right
-            ws.cell(row=r, column=6, value=item["KM"]).alignment = align_right
+            ws.cell(row=r, column=3, value=item["Placa"]).alignment = align_center
+            ws.cell(row=r, column=4, value=item["Obra"]).alignment = align_left
+            ws.cell(row=r, column=5, value=item["Fornecedor"]).alignment = align_left
+            ws.cell(row=r, column=6, value=item["NF"]).alignment = align_center
+            ws.cell(row=r, column=7, value=item["Qtd (Ton)"]).alignment = align_right
+            ws.cell(row=r, column=8, value=item["KM"]).alignment = align_right
             
-            # FÓRMULA DE MULTIPLICAÇÃO: Quantidade x KM (Coluna G)
-            ws.cell(row=r, column=7, value=f"=E{r}*F{r}").alignment = align_right
+            # Fórmulas ajustadas para as novas colunas
+            ws.cell(row=r, column=9, value=f"=G{r}*H{r}").alignment = align_right  # KM Total
+            ws.cell(row=r, column=10, value=item["Pedágio (R$)"]).alignment = align_right
+            ws.cell(row=r, column=11, value=item["Valor Frete (R$)"]).alignment = align_right
+            ws.cell(row=r, column=12, value=f"=(I{r}*K{r})+J{r}").alignment = align_right  # Total Geral
             
-            ws.cell(row=r, column=8, value=item["Pedágio (R$)"]).alignment = align_right
-            ws.cell(row=r, column=9, value=item["Valor Frete (R$)"]).alignment = align_right
-            
-            # FÓRMULA PRINCIPAL: (KM x Quantidade x Valor do Frete) + Pedágio -> =(G * Valor_Frete) + Pedágio
-            ws.cell(row=r, column=10, value=f"=(G{r}*I{r})+H{r}").alignment = align_right
-            
+            # Formatação numérica
             ws.cell(row=r, column=1).number_format = "yyyy-mm-dd"
-            ws.cell(row=r, column=5).number_format = "#,##0.00"
-            ws.cell(row=r, column=6).number_format = "#,##0.0"
             ws.cell(row=r, column=7).number_format = "#,##0.00"
-            ws.cell(row=r, column=8).number_format = 'R$ #,##0.00'
-            ws.cell(row=r, column=9).number_format = 'R$ #,##0.00'
+            ws.cell(row=r, column=8).number_format = "#,##0.0"
+            ws.cell(row=r, column=9).number_format = "#,##0.00"
             ws.cell(row=r, column=10).number_format = 'R$ #,##0.00'
+            ws.cell(row=r, column=11).number_format = 'R$ #,##0.00'
+            ws.cell(row=r, column=12).number_format = 'R$ #,##0.00'
             
-            for c in range(1, 11):
+            for c in range(1, 13):
                 cell = ws.cell(row=r, column=c)
                 cell.font = font_regular
                 cell.border = thin_border
@@ -173,17 +168,22 @@ if len(st.session_state.lista_fretes) > 0:
 
         tot_row = start_row + len(st.session_state.lista_fretes)
         ws.cell(row=tot_row, column=1, value="TOTAL GERAL").font = font_bold
-        ws.cell(row=tot_row, column=5, value=f"=SUM(E{start_row}:E{tot_row-1})")
-        ws.cell(row=tot_row, column=6, value=f"=SUM(F{start_row}:F{tot_row-1})")
         ws.cell(row=tot_row, column=7, value=f"=SUM(G{start_row}:G{tot_row-1})")
         ws.cell(row=tot_row, column=8, value=f"=SUM(H{start_row}:H{tot_row-1})")
         ws.cell(row=tot_row, column=9, value=f"=SUM(I{start_row}:I{tot_row-1})")
         ws.cell(row=tot_row, column=10, value=f"=SUM(J{start_row}:J{tot_row-1})")
+        ws.cell(row=tot_row, column=11, value=f"=AVERAGE(K{start_row}:K{tot_row-1})")
+        ws.cell(row=tot_row, column=12, value=f"=SUM(L{start_row}:L{tot_row-1})")
 
-        ws.cell(row=tot_row, column=5).number_format = "#,##0.00"
+        # Formatos da linha total
         ws.cell(row=tot_row, column=7).number_format = "#,##0.00"
+        ws.cell(row=tot_row, column=8).number_format = "#,##0.0"
+        ws.cell(row=tot_row, column=9).number_format = "#,##0.00"
+        ws.cell(row=tot_row, column=10).number_format = 'R$ #,##0.00'
+        ws.cell(row=tot_row, column=11).number_format = 'R$ #,##0.00'
+        ws.cell(row=tot_row, column=12).number_format = 'R$ #,##0.00'
 
-        for c in range(1, 11):
+        for c in range(1, 13):
             cell = ws.cell(row=tot_row, column=c)
             cell.font = font_bold
             cell.fill = fill_total
@@ -194,7 +194,6 @@ if len(st.session_state.lista_fretes) > 0:
             col_letter = get_column_letter(col[0].column)
             ws.column_dimensions[col_letter].width = max(max_len + 4, 15)
 
-        # Salvar em buffer de memória para download
         output = io.BytesIO()
         wb.save(output)
         output.seek(0)
