@@ -13,53 +13,82 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("🚚 Sistema de Controlo de Fretes e Logística (com CRUD)")
-st.markdown("Insira novos fretes abaixo ou **edite, adicione e exclua registos diretamente na tabela interativa**.")
+st.title("🚚 Sistema de Controlo de Fretes e Logística")
+st.markdown("Preencha o formulário para registar o frete. Pode editar ou excluir linhas diretamente na tabela interativa abaixo.")
 
 # Inicializar a lista de fretes na memória da sessão
 if "lista_fretes" not in st.session_state:
     st.session_state.lista_fretes = []
 
-# --- 1. FORMULÁRIO PARA ADICIONAR NOVO FRETE ---
+# --- 1. FORMULÁRIO COM LAYOUT REFINADO ---
 with st.form("frete_form", clear_on_submit=True):
-    st.subheader("➕ Adicionar Novo Frete à Lista")
-    col1, col2, col3 = st.columns(3)
+    st.subheader("➕ Adicionar Novo Frete")
     
-    with col1:
-        data_frete_obj = st.date_input("Data do Frete")
-        data_frete = data_frete_obj.strftime("%d/%m/%Y") # Formato rigoroso DD/MM/AAAA
-        fretista = st.text_input("Nome do Fretista", "Carlos Silva")
-        placa_veiculo = st.text_input("Placa do Veículo", "ABC-1234")
-        
-    with col2:
-        obra = st.text_input("Obra", "Obra Residencial Alpha")
-        fornecedor = st.text_input("Fornecedor", "Ellenco")
-        nota_fiscal = st.text_input("Nota Fiscal (NF)", "12345")
-        num_vale = st.text_input("Número do Vale", "V-001") # Novo campo para o número do vale
-        
-    with col3:
-        quantidade = st.number_input("Quantidade (Ton)", min_value=0.0, value=2.5, step=0.1, format="%.2f")
-        km = st.number_input("KM (Quilometragem)", min_value=0.0, value=45.0, format="%.1f")
-        pedagio = st.number_input("Valor do Pedágio (R$)", min_value=0.0, value=12.50, format="%.2f")
-        valor_frete = st.number_input("Valor do Frete (R$)", min_value=0.0, value=4.00, format="%.2f")
-        
-        tipo_desconto = st.selectbox("Tipo de Desconto", ["Nenhum", "Diesel", "Marmitex"])
-        valor_desconto = st.number_input("Valor do Desconto (R$)", min_value=0.0, value=0.00, format="%.2f")
+    # Bloco 1: Dados Gerais do Transporte
+    with st.container(border=True):
+        st.markdown("##### 📌 Dados do Transporte")
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            data_frete_obj = st.date_input("📅 Data do Frete")
+            data_frete = data_frete_obj.strftime("%d/%m/%Y")
+        with c2:
+            fretista = st.text_input("👤 Nome do Fretista", value="Carlos Silva")
+        with c3:
+            placa_veiculo = st.text_input("🚛 Placa do Veículo", value="ABC-1234")
+        with c4:
+            num_vale = st.text_input("🎟️ Nº do Vale", value="V-001")
 
-    # --- CÁLCULO EM TEMPO REAL ---
-    subtotal_preview = (km * quantidade * valor_frete) + pedagio
+    # Bloco 2: Destino, Fornecedor e Documentação
+    with st.container(border=True):
+        st.markdown("##### 🏗️ Origem, Destino e Documentação")
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            obra = st.text_input("🏗️ Obra / Destino", value="Obra Residencial Alpha")
+        with c2:
+            fornecedor = st.text_input("🏭 Fornecedor", value="Ellenco")
+        with c3:
+            nota_fiscal = st.text_input("📄 Nota Fiscal (NF)", value="12345")
+
+    # Bloco 3: Quilometragem, Carga e Valores
+    with st.container(border=True):
+        st.markdown("##### ⚖️ Carga, Distância e Custos")
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            quantidade = st.number_input("⚖️ Quantidade (Ton)", min_value=0.0, value=2.5, step=0.1, format="%.2f")
+        with c2:
+            km = st.number_input("🛣️ Distância (KM)", min_value=0.0, value=45.0, step=1.0, format="%.1f")
+        with c3:
+            valor_frete = st.number_input("💵 Valor/Ton/KM (R$)", min_value=0.0, value=4.00, step=0.50, format="%.2f")
+        with c4:
+            pedagio = st.number_input("🛣️ Pedágio (R$)", min_value=0.0, value=12.50, step=1.00, format="%.2f")
+
+    # Bloco 4: Descontos
+    with st.container(border=True):
+        st.markdown("##### 🏷️ Descontos e Abatimentos")
+        c1, c2 = st.columns(2)
+        with c1:
+            tipo_desconto = st.selectbox("🏷️ Tipo de Desconto", ["Nenhum", "Diesel", "Marmitex"])
+        with c2:
+            valor_desconto = st.number_input("➖ Valor do Desconto (R$)", min_value=0.0, value=0.00, step=5.00, format="%.2f")
+
+    # --- CÁLCULO E PRÉ-VISUALIZAÇÃO EM TEMPO REAL ---
+    km_total_preview = quantidade * km
+    subtotal_preview = (km_total_preview * valor_frete) + pedagio
     total_geral_preview = subtotal_preview - valor_desconto
 
     st.markdown("---")
-    st.markdown(f"**Pré-visualização do Total deste Frete (com desconto):** R$ {total_geral_preview:,.2f}")
     
-    submitted_add = st.form_submit_button("➕ Adicionar Este Frete à Lista")
+    # Exibição de Métricas em Destaque
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric(label="KM Total (Qtd x KM)", value=f"{km_total_preview:,.2f} km")
+    m2.metric(label="Subtotal da Viagem", value=f"R$ {subtotal_preview:,.2f}")
+    m3.metric(label="Desconto Aplicado", value=f"R$ {valor_desconto:,.2f}")
+    m4.metric(label="Total Geral Final", value=f"R$ {total_geral_preview:,.2f}")
+
+    st.markdown("---")
+    submitted_add = st.form_submit_button("➕ Adicionar Este Frete à Lista", use_container_width=True)
 
 if submitted_add:
-    subtotal_viagem = (km * quantidade * valor_frete) + pedagio
-    total_geral_viagem = subtotal_viagem - valor_desconto
-    km_total_viagem = quantidade * km
-
     st.session_state.lista_fretes.append({
         "Data": data_frete,
         "Fretista": fretista,
@@ -70,12 +99,12 @@ if submitted_add:
         "Nº Vale": num_vale,
         "Qtd (Ton)": float(quantidade),
         "KM": float(km),
-        "KM Total": float(km_total_viagem),
+        "KM Total": float(km_total_preview),
         "Pedágio (R$)": float(pedagio),
         "Valor Frete (R$)": float(valor_frete),
         "Tipo Desconto": tipo_desconto,
         "Desconto (R$)": float(valor_desconto),
-        "Total Geral (R$)": float(total_geral_viagem)
+        "Total Geral (R$)": float(total_geral_preview)
     })
     st.success("Frete adicionado com sucesso!")
     st.rerun()
@@ -83,13 +112,11 @@ if submitted_add:
 # --- 2. CONTROLE DE CRUD (TABELA INTERATIVA) ---
 if len(st.session_state.lista_fretes) > 0:
     st.markdown("---")
-    st.subheader(f"📋 Controlo de Registos (CRUD) - ({len(st.session_state.lista_fretes)} registos)")
+    st.subheader(f"📋 Controlo de Registos ({len(st.session_state.lista_fretes)} registos)")
     st.markdown("💡 *Pode editar qualquer célula diretamente na tabela, adicionar novas linhas ou apagar linhas selecionando-as e clicando na lixeira.*")
 
-    # Converter lista em DataFrame para edição interativa
     df_current = pd.DataFrame(st.session_state.lista_fretes)
 
-    # Tabela com suporte a edição, adição e exclusão de linhas (CRUD interativo)
     df_edited = st.data_editor(
         df_current,
         num_rows="dynamic",
@@ -97,7 +124,7 @@ if len(st.session_state.lista_fretes) > 0:
         key="crud_editor"
     )
 
-    # Atualizar automaticamente os cálculos baseados nas edições feitas na tabela
+    # Recálculo automático em caso de edição manual na tabela
     for idx, row in df_edited.iterrows():
         try:
             q = float(row["Qtd (Ton)"])
@@ -111,12 +138,10 @@ if len(st.session_state.lista_fretes) > 0:
         except Exception:
             pass
 
-    # Atualizar o session_state com os dados editados
     st.session_state.lista_fretes = df_edited.to_dict(orient="records")
 
     col_btn1, col_btn2 = st.columns(2)
 
-    # Botão para limpar toda a lista
     if col_btn1.button("🗑️ Limpar Todos os Registos", use_container_width=True):
         st.session_state.lista_fretes = []
         st.rerun()
@@ -184,7 +209,6 @@ if len(st.session_state.lista_fretes) > 0:
             ws.cell(row=r, column=8, value=item.get("Qtd (Ton)", 0)).alignment = align_right
             ws.cell(row=r, column=9, value=item.get("KM", 0)).alignment = align_right
             
-            # Fórmulas Excel ajustadas para as novas colunas
             ws.cell(row=r, column=10, value=f"=H{r}*I{r}").alignment = align_right
             ws.cell(row=r, column=11, value=item.get("Pedágio (R$)", 0)).alignment = align_right
             ws.cell(row=r, column=12, value=item.get("Valor Frete (R$)", 0)).alignment = align_right
@@ -192,7 +216,6 @@ if len(st.session_state.lista_fretes) > 0:
             ws.cell(row=r, column=14, value=item.get("Desconto (R$)", 0)).alignment = align_right
             ws.cell(row=r, column=15, value=f"=((J{r}*L{r})+K{r})-N{r}").alignment = align_right
             
-            # Formatação numérica
             ws.cell(row=r, column=8).number_format = "#,##0.00"
             ws.cell(row=r, column=9).number_format = "#,##0.0"
             ws.cell(row=r, column=10).number_format = "#,##0.00"
@@ -218,7 +241,6 @@ if len(st.session_state.lista_fretes) > 0:
         ws.cell(row=tot_row, column=14, value=f"=SUM(N{start_row}:N{tot_row-1})")
         ws.cell(row=tot_row, column=15, value=f"=SUM(O{start_row}:O{tot_row-1})")
 
-        # Formatos da linha total
         ws.cell(row=tot_row, column=8).number_format = "#,##0.00"
         ws.cell(row=tot_row, column=9).number_format = "#,##0.0"
         ws.cell(row=tot_row, column=10).number_format = "#,##0.00"
