@@ -14,7 +14,7 @@ st.set_page_config(
 )
 
 st.title("🚚 Sistema de Controlo de Fretes e Logística (com CRUD)")
-st.markdown("Insira novos fretes abaixo ou **edite, adicione e exclua registros diretamente na tabela interativa**.")
+st.markdown("Insira novos fretes abaixo ou **edite, adicione e exclua registos diretamente na tabela interativa**.")
 
 # Inicializar a lista de fretes na memória da sessão
 if "lista_fretes" not in st.session_state:
@@ -27,7 +27,7 @@ with st.form("frete_form", clear_on_submit=True):
     
     with col1:
         data_frete_obj = st.date_input("Data do Frete")
-        data_frete = data_frete_obj.strftime("%d/%m/%Y") # Formato DD/MM/AAAA
+        data_frete = data_frete_obj.strftime("%d/%m/%Y") # Formato rigoroso DD/MM/AAAA
         fretista = st.text_input("Nome do Fretista", "Carlos Silva")
         placa_veiculo = st.text_input("Placa do Veículo", "ABC-1234")
         
