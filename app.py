@@ -12,19 +12,20 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("🚚 Sistema de Controlo de Fretes e Logística")
-st.markdown("Insira e **guarde os fretes um por um**. Pode limpar a lista ou descarregar o relatório consolidado.")
+st.title("🚚 Sistema de Controlo de Fretes e Logística (com CRUD)")
+st.markdown("Insira novos fretes abaixo ou **edite, adicione e exclua registros diretamente na tabela interativa**.")
 
 # Inicializar a lista de fretes na memória da sessão
 if "lista_fretes" not in st.session_state:
     st.session_state.lista_fretes = []
 
+# --- 1. FORMULÁRIO PARA ADICIONAR NOVO FRETE ---
 with st.form("frete_form", clear_on_submit=True):
-    st.subheader("Adicionar Novo Frete à Lista")
+    st.subheader("➕ Adicionar Novo Frete à Lista")
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        data_frete = st.date_input("Data do Frete")
+        data_frete = str(st.date_input("Data do Frete"))
         fretista = st.text_input("Nome do Fretista", "Carlos Silva")
         placa_veiculo = st.text_input("Placa do Veículo", "ABC-1234")
         
@@ -39,11 +40,10 @@ with st.form("frete_form", clear_on_submit=True):
         pedagio = st.number_input("Valor do Pedágio (R$)", min_value=0.0, value=12.50, format="%.2f")
         valor_frete = st.number_input("Valor do Frete (R$)", min_value=0.0, value=4.00, format="%.2f")
         
-        # Seleção do tipo de desconto e o valor
         tipo_desconto = st.selectbox("Tipo de Desconto", ["Nenhum", "Diesel", "Marmitex"])
         valor_desconto = st.number_input("Valor do Desconto (R$)", min_value=0.0, value=0.00, format="%.2f")
 
-    # --- CÁLCULO EM TEMPO REAL: ((KM * Quantidade * Valor do Frete) + Pedágio) - Valor do Desconto ---
+    # --- CÁLCULO EM TEMPO REAL ---
     subtotal_preview = (km * quantidade * valor_frete) + pedagio
     total_geral_preview = subtotal_preview - valor_desconto
 
@@ -58,41 +58,66 @@ if submitted_add:
     km_total_viagem = quantidade * km
 
     st.session_state.lista_fretes.append({
-        "Data": str(data_frete),
+        "Data": data_frete,
         "Fretista": fretista,
         "Placa": placa_veiculo,
         "Obra": obra,
         "Fornecedor": fornecedor,
         "NF": nota_fiscal,
-        "Qtd (Ton)": quantidade,
-        "KM": km,
-        "KM Total": km_total_viagem,
-        "Pedágio (R$)": pedagio,
-        "Valor Frete (R$)": valor_frete,
+        "Qtd (Ton)": float(quantidade),
+        "KM": float(km),
+        "KM Total": float(km_total_viagem),
+        "Pedágio (R$)": float(pedagio),
+        "Valor Frete (R$)": float(valor_frete),
         "Tipo Desconto": tipo_desconto,
-        "Desconto (R$)": valor_desconto,
-        "Total Geral (R$)": total_geral_viagem
+        "Desconto (R$)": float(valor_desconto),
+        "Total Geral (R$)": float(total_geral_viagem)
     })
     st.success("Frete adicionado com sucesso!")
     st.rerun()
 
-# Se houver fretes guardados, exibe a tabela acumulada e opções gerais
+# --- 2. CONTROLE DE CRUD (TABELA INTERATIVA) ---
 if len(st.session_state.lista_fretes) > 0:
     st.markdown("---")
-    st.subheader(f"📋 Fretes Acumulados ({len(st.session_state.lista_fretes)} registos)")
-    
-    # Exibir tabela completa resumida em DataFrame
-    df_preview = pd.DataFrame(st.session_state.lista_fretes)
-    st.dataframe(df_preview, use_container_width=True)
+    st.subheader(f"📋 Controlo de Registos (CRUD) - ({len(st.session_state.lista_fretes)} registos)")
+    st.markdown("💡 *Pode editar qualquer célula diretamente na tabela, adicionar novas linhas ou apagar linhas selecionando-as e clicando na lixeira.*")
+
+    # Converter lista em DataFrame para edição interativa
+    df_current = pd.DataFrame(st.session_state.lista_fretes)
+
+    # Tabela com suporte a edição, adição e exclusão de linhas (CRUD interativo)
+    df_edited = st.data_editor(
+        df_current,
+        num_rows="dynamic",
+        use_container_width=True,
+        key="crud_editor"
+    )
+
+    # Atualizar automaticamente os cálculos baseados nas edições feitas na tabela
+    for idx, row in df_edited.iterrows():
+        try:
+            q = float(row["Qtd (Ton)"])
+            k = float(row["KM"])
+            vf = float(row["Valor Frete (R$)"])
+            ped = float(row["Pedágio (R$)"])
+            desc = float(row["Desconto (R$)"])
+            
+            df_edited.loc[idx, "KM Total"] = q * k
+            df_edited.loc[idx, "Total Geral (R$)"] = ((k * q * vf) + ped) - desc
+        except Exception:
+            pass
+
+    # Atualizar o session_state com os dados editados
+    st.session_state.lista_fretes = df_edited.to_dict(orient="records")
 
     col_btn1, col_btn2 = st.columns(2)
 
-    # Botão para limpar toda a lista de uma vez
+    # Botão para limpar toda a lista
     if col_btn1.button("🗑️ Limpar Todos os Registos", use_container_width=True):
         st.session_state.lista_fretes = []
         st.rerun()
 
-    # Gerar a Planilha Excel consolidada
+    # --- 3. GERAÇÃO DA PLANILHA EXCEL CONSOLIDADA ---
     try:
         wb = openpyxl.Workbook()
         ws = wb.active
@@ -145,80 +170,28 @@ if len(st.session_state.lista_fretes) > 0:
         for i, item in enumerate(st.session_state.lista_fretes):
             r = start_row + i
             
-            ws.cell(row=r, column=1, value=item["Data"]).alignment = align_center
-            ws.cell(row=r, column=2, value=item["Fretista"]).alignment = align_left
-            ws.cell(row=r, column=3, value=item["Placa"]).alignment = align_center
-            ws.cell(row=r, column=4, value=item["Obra"]).alignment = align_left
-            ws.cell(row=r, column=5, value=item["Fornecedor"]).alignment = align_left
-            ws.cell(row=r, column=6, value=item["NF"]).alignment = align_center
-            ws.cell(row=r, column=7, value=item["Qtd (Ton)"]).alignment = align_right
-            ws.cell(row=r, column=8, value=item["KM"]).alignment = align_right
+            ws.cell(row=r, column=1, value=str(item.get("Data", ""))).alignment = align_center
+            ws.cell(row=r, column=2, value=str(item.get("Fretista", ""))).alignment = align_left
+            ws.cell(row=r, column=3, value=str(item.get("Placa", ""))).alignment = align_center
+            ws.cell(row=r, column=4, value=str(item.get("Obra", ""))).alignment = align_left
+            ws.cell(row=r, column=5, value=str(item.get("Fornecedor", ""))).alignment = align_left
+            ws.cell(row=r, column=6, value=str(item.get("NF", ""))).alignment = align_center
+            ws.cell(row=r, column=7, value=item.get("Qtd (Ton)", 0)).alignment = align_right
+            ws.cell(row=r, column=8, value=item.get("KM", 0)).alignment = align_right
             
-            # Fórmulas Excel ajustadas para a nova coluna (Coluna M = Desconto, Coluna N = Total Geral)
+            # Fórmulas Excel aplicadas nas colunas calculadas
             ws.cell(row=r, column=9, value=f"=G{r}*H{r}").alignment = align_right
-            ws.cell(row=r, column=10, value=item["Pedágio (R$)"]).alignment = align_right
-            ws.cell(row=r, column=11, value=item["Valor Frete (R$)"]).alignment = align_right
-            ws.cell(row=r, column=12, value=item["Tipo Desconto"]).alignment = align_center
-            ws.cell(row=r, column=13, value=item["Desconto (R$)"]).alignment = align_right
+            ws.cell(row=r, column=10, value=item.get("Pedágio (R$)", 0)).alignment = align_right
+            ws.cell(row=r, column=11, value=item.get("Valor Frete (R$)", 0)).alignment = align_right
+            ws.cell(row=r, column=12, value=str(item.get("Tipo Desconto", "Nenhum"))).alignment = align_center
+            ws.cell(row=r, column=13, value=item.get("Desconto (R$)", 0)).alignment = align_right
             ws.cell(row=r, column=14, value=f"=((I{r}*K{r})+J{r})-M{r}").alignment = align_right
             
             # Formatação numérica
-            ws.cell(row=r, column=1).number_format = "yyyy-mm-dd"
             ws.cell(row=r, column=7).number_format = "#,##0.00"
             ws.cell(row=r, column=8).number_format = "#,##0.0"
             ws.cell(row=r, column=9).number_format = "#,##0.00"
             ws.cell(row=r, column=10).number_format = 'R$ #,##0.00'
             ws.cell(row=r, column=11).number_format = 'R$ #,##0.00'
             ws.cell(row=r, column=13).number_format = 'R$ #,##0.00'
-            ws.cell(row=r, column=14).number_format = 'R$ #,##0.00'
-            
-            for c in range(1, 15):
-                cell = ws.cell(row=r, column=c)
-                cell.font = font_regular
-                cell.border = thin_border
-                if i % 2 == 1:
-                    cell.fill = fill_zebra
-
-        tot_row = start_row + len(st.session_state.lista_fretes)
-        ws.cell(row=tot_row, column=1, value="TOTAL GERAL").font = font_bold
-        ws.cell(row=tot_row, column=7, value=f"=SUM(G{start_row}:G{tot_row-1})")
-        ws.cell(row=tot_row, column=8, value=f"=SUM(H{start_row}:H{tot_row-1})")
-        ws.cell(row=tot_row, column=9, value=f"=SUM(I{start_row}:I{tot_row-1})")
-        ws.cell(row=tot_row, column=10, value=f"=SUM(J{start_row}:J{tot_row-1})")
-        ws.cell(row=tot_row, column=11, value=f"=AVERAGE(K{start_row}:K{tot_row-1})")
-        ws.cell(row=tot_row, column=13, value=f"=SUM(M{start_row}:M{tot_row-1})")
-        ws.cell(row=tot_row, column=14, value=f"=SUM(N{start_row}:N{tot_row-1})")
-
-        # Formatos da linha total
-        ws.cell(row=tot_row, column=7).number_format = "#,##0.00"
-        ws.cell(row=tot_row, column=8).number_format = "#,##0.0"
-        ws.cell(row=tot_row, column=9).number_format = "#,##0.00"
-        ws.cell(row=tot_row, column=10).number_format = 'R$ #,##0.00'
-        ws.cell(row=tot_row, column=11).number_format = 'R$ #,##0.00'
-        ws.cell(row=tot_row, column=13).number_format = 'R$ #,##0.00'
-        ws.cell(row=tot_row, column=14).number_format = 'R$ #,##0.00'
-
-        for c in range(1, 15):
-            cell = ws.cell(row=tot_row, column=c)
-            cell.font = font_bold
-            cell.fill = fill_total
-            cell.border = thin_border
-
-        for col in ws.columns:
-            max_len = max(len(str(cell.value or '')) for cell in col)
-            col_letter = get_column_letter(col[0].column)
-            ws.column_dimensions[col_letter].width = max(max_len + 4, 15)
-
-        output = io.BytesIO()
-        wb.save(output)
-        output.seek(0)
-
-        col_btn2.download_button(
-            label="📥 Descarregar Planilha Consolidada",
-            data=output,
-            file_name="Controle_de_Fretes.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            use_container_width=True
-        )
-    except Exception as e:
-        st.error(f"Ocorreu um erro ao gerar o arquivo Excel: {e}")
+            ws.cell(row=r,
