@@ -38,7 +38,7 @@ with st.form("frete_form", clear_on_submit=True):
         km = st.number_input("KM (Quilometragem)", min_value=0.0, value=45.0, format="%.1f")
         pedagio = st.number_input("Valor do Pedágio (R$)", min_value=0.0, value=12.50, format="%.2f")
         valor_frete = st.number_input("Valor do Frete (R$)", min_value=0.0, value=4.00, format="%.2f")
-        desconto = st.number_input("Desconto (R$)", min_value=0.0, value=0.00, format="%.2f") # Novo campo de desconto
+        desconto = st.number_input("Desconto (R$)", min_value=0.0, value=0.00, format="%.2f")
 
     # --- CÁLCULO EM TEMPO REAL: ((KM * Quantidade * Valor do Frete) + Pedágio) - Desconto ---
     subtotal_preview = (km * quantidade * valor_frete) + pedagio
@@ -77,31 +77,36 @@ if len(st.session_state.lista_fretes) > 0:
     st.markdown("---")
     st.subheader(f"📋 Fretes Acumulados ({len(st.session_state.lista_fretes)} registos)")
     
-    # Exibir itens com opção de exclusão individual linha por linha
-    for idx, item in enumerate(st.session_state.lista_fretes):
-        with st.container():
-            col_info, col_del = st.columns([8, 1])
-            with col_info:
-                st.text(
-                    f"#{idx+1} | Data: {item['Data']} | Fretista: {item['Fretista']} | "
-                    f"Placa: {item['Placa']} | Obra: {item['Obra']} | Desconto: R$ {item['Desconto (R$)']:,.2f} | Total: R$ {item['Total Geral (R$)']:,.2f}"
-                )
-            with col_del:
-                if st.button("🗑️ Excluir", key=f"del_{idx}"):
-                    st.session_state.lista_fretes.pop(idx)
-                    st.success(f"Registo #{idx+1} excluído com sucesso!")
-                    st.rerun()
-
-    st.markdown("---")
-    
-    # Exibir tabela completa resumida em DataFrame
+    # Exibir tabela prévia resumida em DataFrame
     df_preview = pd.DataFrame(st.session_state.lista_fretes)
     st.dataframe(df_preview, use_container_width=True)
 
+    st.markdown("### 🗑️ Gestão e Exclusão Individual de Registos")
+    st.markdown("Visualize o **Total Geral** de cada registo e clique em excluir caso precise remover um item específico:")
+
+    # Exibir cada item detalhado com o Total Geral e o botão de exclusão logo ao lado
+    for idx, item in enumerate(st.session_state.lista_fretes):
+        col_resumo, col_btn = st.columns([5, 1])
+        
+        with col_resumo:
+            st.markdown(
+                f"**#{idx+1}** | Data: `{item['Data']}` | Fretista: **{item['Fretista']}** | "
+                f"Placa: `{item['Placa']}` | Obra: *{item['Obra']}* | "
+                f"Total Geral: **R$ {item['Total Geral (R$)']:,.2f}**"
+            )
+            
+        with col_btn:
+            if st.button("🗑️ Excluir", key=f"del_{idx}", use_container_width=True):
+                st.session_state.lista_fretes.pop(idx)
+                st.success(f"Registo #{idx+1} excluído com sucesso!")
+                st.rerun()
+
+    st.markdown("---")
+
     col_btn1, col_btn2 = st.columns(2)
 
-    # Botão para limpar toda a lista
-    if col_btn1.button("🗑️ Limpar Todos os Registos"):
+    # Botão para limpar toda a lista de uma vez
+    if col_btn1.button("🗑️ Limpar Todos os Registos", use_container_width=True):
         st.session_state.lista_fretes = []
         st.rerun()
 
@@ -167,7 +172,7 @@ if len(st.session_state.lista_fretes) > 0:
             ws.cell(row=r, column=7, value=item["Qtd (Ton)"]).alignment = align_right
             ws.cell(row=r, column=8, value=item["KM"]).alignment = align_right
             
-            # Fórmulas ajustadas incluindo a coluna L (Desconto)
+            # Fórmulas Excel
             ws.cell(row=r, column=9, value=f"=G{r}*H{r}").alignment = align_right
             ws.cell(row=r, column=10, value=item["Pedágio (R$)"]).alignment = align_right
             ws.cell(row=r, column=11, value=item["Valor Frete (R$)"]).alignment = align_right
