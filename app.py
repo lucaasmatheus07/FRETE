@@ -17,6 +17,8 @@ st.set_page_config(
 st.markdown("""
     <style>
         /* Cores da Ellenco: Azul Escuro #00234B | Vermelho #D9232A */
+        
+        /* Fundo da aplicação */
         .stApp {
             background-color: #f4f6f9;
         }
@@ -24,7 +26,7 @@ st.markdown("""
         /* Cabeçalho do Título */
         .main-header {
             background: linear-gradient(135deg, #00234B 0%, #001530 100%);
-            padding: 20px 24px;
+            padding: 24px;
             border-radius: 10px;
             color: white;
             border-bottom: 5px solid #D9232A;
@@ -38,7 +40,6 @@ st.markdown("""
             margin: 0;
             padding: 0;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            font-size: 28px;
         }
         
         .main-header p {
@@ -104,25 +105,13 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- CABEÇALHO COM LOGÓTIPO E TEMA VISUAL ---
-col_logo, col_title = st.columns([1, 5])
-with col_logo:
-    # Insira o caminho do arquivo de imagem do logótipo salvo no seu projeto (ex: "logo_ellenco.png")
-    # Caso utilize a imagem enviada, certifique-se de salvá-la na mesma pasta com o nome correspondente.
-    try:
-        st.image("image_07fb02.png", width=130) # Logótipo da Ellenco[cite: 3]
-    except Exception:
-        st.write("🚚 **ELLENCO**")
-
-with col_title:
-    st.markdown("""
-        <div class="main-header" style="margin-bottom: 0px; padding: 15px 20px;">
-            <h1>Sistema de Controlo de Fretes e Logística</h1>
-            <p>Registo, gestão operacional e consolidação automática de relatórios em Excel.</p>
-        </div>
-    """, unsafe_allow_html=True)
-
-st.markdown("<br>", unsafe_allow_html=True)
+# Banner de Cabeçalho Personalizado da Ellenco
+st.markdown("""
+    <div class="main-header">
+        <h1>🚚 ELLENCO | Sistema de Controlo de Fretes e Logística</h1>
+        <p>Registe e gira os fretes com consolidação e exportação automática de relatórios.</p>
+    </div>
+""", unsafe_allow_html=True)
 
 # Inicializar a lista de fretes na memória da sessão
 if "lista_fretes" not in st.session_state:
@@ -261,6 +250,7 @@ if len(st.session_state.lista_fretes) > 0:
         ws.title = "Controle de Fretes"
         ws.views.sheetView[0].showGridLines = True
 
+        # Cores corporativas da Ellenco no Excel
         ELLENCO_NAVY = "00234B"
         ELLENCO_RED = "D9232A"
         TOTAL_BG = "E6EEF4"
