@@ -13,7 +13,7 @@ st.set_page_config(
 )
 
 st.title("🚚 Sistema de Controlo de Fretes e Logística")
-st.markdown("Insira e **guarde os fretes um por um**. Pode consultar, eliminar registos individuais ou descarregar o relatório.")
+st.markdown("Insira e **guarde os fretes um por um**. Pode limpar a lista ou descarregar o relatório consolidado.")
 
 # Inicializar a lista de fretes na memória da sessão
 if "lista_fretes" not in st.session_state:
@@ -72,36 +72,14 @@ if submitted_add:
     st.success("Frete adicionado com sucesso!")
     st.rerun()
 
-# Se houver fretes guardados, exibe a tabela acumulada e opções de exclusão / exportação
+# Se houver fretes guardados, exibe a tabela acumulada e opções gerais
 if len(st.session_state.lista_fretes) > 0:
     st.markdown("---")
     st.subheader(f"📋 Fretes Acumulados ({len(st.session_state.lista_fretes)} registos)")
     
-    # Exibir tabela prévia resumida em DataFrame
+    # Exibir tabela completa resumida em DataFrame
     df_preview = pd.DataFrame(st.session_state.lista_fretes)
     st.dataframe(df_preview, use_container_width=True)
-
-    st.markdown("### 🗑️ Gestão e Exclusão Individual de Registos")
-    st.markdown("Visualize o **Total Geral** de cada registo e clique em excluir caso precise remover um item específico:")
-
-    # Exibir cada item detalhado com o Total Geral e o botão de exclusão logo ao lado
-    for idx, item in enumerate(st.session_state.lista_fretes):
-        col_resumo, col_btn = st.columns([5, 1])
-        
-        with col_resumo:
-            st.markdown(
-                f"**#{idx+1}** | Data: `{item['Data']}` | Fretista: **{item['Fretista']}** | "
-                f"Placa: `{item['Placa']}` | Obra: *{item['Obra']}* | "
-                f"Total Geral: **R$ {item['Total Geral (R$)']:,.2f}**"
-            )
-            
-        with col_btn:
-            if st.button("🗑️ Excluir", key=f"del_{idx}", use_container_width=True):
-                st.session_state.lista_fretes.pop(idx)
-                st.success(f"Registo #{idx+1} excluído com sucesso!")
-                st.rerun()
-
-    st.markdown("---")
 
     col_btn1, col_btn2 = st.columns(2)
 
@@ -187,55 +165,4 @@ if len(st.session_state.lista_fretes) > 0:
             ws.cell(row=r, column=10).number_format = 'R$ #,##0.00'
             ws.cell(row=r, column=11).number_format = 'R$ #,##0.00'
             ws.cell(row=r, column=12).number_format = 'R$ #,##0.00'
-            ws.cell(row=r, column=13).number_format = 'R$ #,##0.00'
-            
-            for c in range(1, 14):
-                cell = ws.cell(row=r, column=c)
-                cell.font = font_regular
-                cell.border = thin_border
-                if i % 2 == 1:
-                    cell.fill = fill_zebra
-
-        tot_row = start_row + len(st.session_state.lista_fretes)
-        ws.cell(row=tot_row, column=1, value="TOTAL GERAL").font = font_bold
-        ws.cell(row=tot_row, column=7, value=f"=SUM(G{start_row}:G{tot_row-1})")
-        ws.cell(row=tot_row, column=8, value=f"=SUM(H{start_row}:H{tot_row-1})")
-        ws.cell(row=tot_row, column=9, value=f"=SUM(I{start_row}:I{tot_row-1})")
-        ws.cell(row=tot_row, column=10, value=f"=SUM(J{start_row}:J{tot_row-1})")
-        ws.cell(row=tot_row, column=11, value=f"=AVERAGE(K{start_row}:K{tot_row-1})")
-        ws.cell(row=tot_row, column=12, value=f"=SUM(L{start_row}:L{tot_row-1})")
-        ws.cell(row=tot_row, column=13, value=f"=SUM(M{start_row}:M{tot_row-1})")
-
-        # Formatos da linha total
-        ws.cell(row=tot_row, column=7).number_format = "#,##0.00"
-        ws.cell(row=tot_row, column=8).number_format = "#,##0.0"
-        ws.cell(row=tot_row, column=9).number_format = "#,##0.00"
-        ws.cell(row=tot_row, column=10).number_format = 'R$ #,##0.00'
-        ws.cell(row=tot_row, column=11).number_format = 'R$ #,##0.00'
-        ws.cell(row=tot_row, column=12).number_format = 'R$ #,##0.00'
-        ws.cell(row=tot_row, column=13).number_format = 'R$ #,##0.00'
-
-        for c in range(1, 14):
-            cell = ws.cell(row=tot_row, column=c)
-            cell.font = font_bold
-            cell.fill = fill_total
-            cell.border = thin_border
-
-        for col in ws.columns:
-            max_len = max(len(str(cell.value or '')) for cell in col)
-            col_letter = get_column_letter(col[0].column)
-            ws.column_dimensions[col_letter].width = max(max_len + 4, 15)
-
-        output = io.BytesIO()
-        wb.save(output)
-        output.seek(0)
-
-        col_btn2.download_button(
-            label="📥 Descarregar Planilha Consolidada",
-            data=output,
-            file_name="Controle_de_Fretes.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            use_container_width=True
-        )
-    except Exception as e:
-        st.error(f"Ocorreu um erro ao gerar o arquivo Excel: {e}")
+            ws.cell(row
