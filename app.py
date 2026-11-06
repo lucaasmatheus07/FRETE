@@ -8,7 +8,7 @@ from openpyxl.utils import get_column_letter
 
 # Configuração da página
 st.set_page_config(
-    page_title="Controle de Registro de Frete - Ellenco",
+    page_title="Controle de Fretes - Ellenco",
     page_icon="🚚",
     layout="wide"
 )
@@ -116,7 +116,7 @@ with col_logo:
 with col_title:
     st.markdown("""
         <div class="main-header" style="margin-bottom: 0px; padding: 15px 20px;">
-            <h1>Controle de Registro de Frete</h1>
+            <h1>Sistema de Controles de Fretes e Logística</h1>
             <p>Registro, gestão operacional e consolidação automática de relatórios em Excel.</p>
         </div>
     """, unsafe_allow_html=True)
@@ -219,7 +219,7 @@ if submitted_add:
 # --- 2. CONTROLE DE CRUD (TABELA INTERATIVA) ---
 if len(st.session_state.lista_fretes) > 0:
     st.markdown("---")
-    st.subheader(f"📋 Controle de Registro de Frete ({len(st.session_state.lista_fretes)} registros)")
+    st.subheader(f"📋 Controle de Registros ({len(st.session_state.lista_fretes)} registros)")
     st.markdown("💡 *Você pode editar qualquer célula diretamente na tabela, adicionar novas linhas ou apagar linhas selecionando-as e clicando no ícone de lixeira.*")
 
     df_current = pd.DataFrame(st.session_state.lista_fretes)
@@ -258,7 +258,7 @@ if len(st.session_state.lista_fretes) > 0:
     try:
         wb = openpyxl.Workbook()
         ws = wb.active
-        ws.title = "Controle de Registro"
+        ws.title = "Controle de Fretes"
         ws.views.sheetView[0].showGridLines = True
 
         ELLENCO_NAVY = "00234B"
@@ -288,7 +288,7 @@ if len(st.session_state.lista_fretes) > 0:
         align_right = Alignment(horizontal="right", vertical="center")
 
         ws.merge_cells("A1:O1")
-        ws["A1"] = "ELLENCO - CONTROLE DE REGISTRO DE FRETE"
+        ws["A1"] = "ELLENCO - REGISTRO DE CONTROLES DE FRETES E LOGÍSTICA"
         ws["A1"].font = font_title
 
         headers = [
@@ -376,7 +376,7 @@ if len(st.session_state.lista_fretes) > 0:
         col_btn2.download_button(
             label="📥 Gerar Planilha Excel",
             data=output,
-            file_name="Controle_de_Registro_de_Frete_Ellenco.xlsx",
+            file_name="Controle_de_Fretes_Ellenco.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             use_container_width=True
         )
