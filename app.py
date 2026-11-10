@@ -1,5 +1,4 @@
 import io
-from datetime import datetime
 import sqlite3
 import openpyxl
 import pandas as pd
@@ -14,86 +13,117 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- FUNÇÕES DE BANCO DE DADOS (PERSISTÊNCIA) ---
 DB_NAME = "fretes_ellenco.db"
 
+# --- FUNÇÕES DE BANCO DE DADOS (PERSISTÊNCIA) ---
 def init_db():
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS fretes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            data TEXT,
-            fretista TEXT,
-            placa TEXT,
-            obra TEXT,
-            fornecedor TEXT,
-            nf TEXT,
-            num_vale TEXT,
-            qtd REAL,
-            km REAL,
-            km_total REAL,
-            pedagio REAL,
-            valor_frete REAL,
-            tipo_desconto TEXT,
-            desconto REAL,
-            total_geral REAL
-        )
-    """)
-    conn.commit()
-    conn.close()
+    with sqlite3.connect(DB_NAME) as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS fretes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                data TEXT,
+                fretista TEXT,
+                placa TEXT,
+                obra TEXT,
+                fornecedor TEXT,
+                nf TEXT,
+                num_vale TEXT,
+                qtd REAL,
+                km REAL,
+                km_total REAL,
+                pedagio REAL,
+                valor_frete REAL,
+                tipo_desconto TEXT,
+                desconto REAL,
+                adicional_diesel REAL,
+                total_geral REAL
+            )
+        """)
+        # Migração simples caso a tabela já exista sem a coluna adicional_diesel
+        try:
+            cursor.execute("ALTER TABLE fretes ADD COLUMN adicional_diesel REAL DEFAULT 0.0")
+        except sqlite3.OperationalError:
+            pass
+        conn.commit()
 
 def carregar_fretes():
-    conn = sqlite3.connect(DB_NAME)
-    df = pd.read_sql_query("SELECT data as Data, fretista as Fretista, placa as Placa, obra as Obra, fornecedor as Fornecedor, nf as NF, num_vale as 'Nº Vale', qtd as 'Qtd (Ton)', km as KM, km_total as 'KM Total', pedagio as 'Pedágio (R$)', valor_frete as 'Valor Frete (R$)', tipo_desconto as 'Tipo Desconto', desconto as 'Desconto (R$)', total_geral as 'Total Geral (R$)' FROM fretes", conn)
-    conn.close()
+    with sqlite3.connect(DB_NAME) as conn:
+        query = """
+            SELECT 
+                data as Data, 
+                fretista as Fretista, 
+                placa as Placa, 
+                obra as Obra, 
+                fornecedor as Fornecedor, 
+                nf as NF, 
+                num_vale as 'Nº Vale', 
+                qtd as 'Qtd (Ton)', 
+                km as KM, 
+                km_total as 'KM Total', 
+                pedagio as 'Pedágio (R$)', 
+                valor_frete as 'Valor Frete (R$)', 
+                tipo_desconto as 'Tipo Desconto', 
+                desconto as 'Desconto (R$)', 
+                adicional_diesel as 'Adicional Diesel (R$)',
+                total_geral as 'Total Geral (R$)' 
+            FROM fretes
+        """
+        df = pd.read_sql_query(query, conn)
     return df.to_dict(orient="records")
 
 def salvar_novo_frete(item):
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute("""
-        INSERT INTO fretes (data, fretista, placa, obra, fornecedor, nf, num_vale, qtd, km, km_total, pedagio, valor_frete, tipo_desconto, desconto, total_geral)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
-        item["Data"], item["Fretista"], item["Placa"], item["Obra"], item["Fornecedor"],
-        item["NF"], item["Nº Vale"], item["Qtd (Ton)"], item["KM"], item["KM Total"],
-        item["Pedágio (R$)"], item["Valor Frete (R$)"], item["Tipo Desconto"],
-        item["Desconto (R$)"], item["Total Geral (R$)"]
-    ))
-    conn.commit()
-    conn.close()
-
-def atualizar_banco_inteiro(lista_registros):
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM fretes") # Limpa e reinsere o estado atualizado da tabela
-    for item in lista_registros:
+    with sqlite3.connect(DB_NAME) as conn:
+        cursor = conn.cursor()
         cursor.execute("""
-            INSERT INTO fretes (data, fretista, placa, obra, fornecedor, nf, num_vale, qtd, km, km_total, pedagio, valor_frete, tipo_desconto, desconto, total_geral)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO fretes (data, fretista, placa, obra, fornecedor, nf, num_vale, qtd, km, km_total, pedagio, valor_frete, tipo_desconto, desconto, adicional_diesel, total_geral)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
-            str(item.get("Data", "")), str(item.get("Fretista", "")), str(item.get("Placa", "")),
-            str(item.get("Obra", "")), str(item.get("Fornecedor", "")), str(item.get("NF", "")),
-            str(item.get("Nº Vale", "")), float(item.get("Qtd (Ton)", 0)), float(item.get("KM", 0)),
-            float(item.get("KM Total", 0)), float(item.get("Pedágio (R$)", 0)),
-            float(item.get("Valor Frete (R$)", 0)), str(item.get("Tipo Desconto", "Nenhum")),
-            float(item.get("Desconto (R$)", 0)), float(item.get("Total Geral (R$)", 0))
+            item["Data"], item["Fretista"], item["Placa"], item["Obra"], item["Fornecedor"],
+            item["NF"], item["Nº Vale"], item["Qtd (Ton)"], item["KM"], item["KM Total"],
+            item["Pedágio (R$)"], item["Valor Frete (R$)"], item["Tipo Desconto"],
+            item["Desconto (R$)"], item["Adicional Diesel (R$)"], item["Total Geral (R$)"]
         ))
-    conn.commit()
-    conn.close()
+        conn.commit()
+
+def atualizar_banco_inteiro(df_edited):
+    with sqlite3.connect(DB_NAME) as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM fretes")
+        for _, row in df_edited.iterrows():
+            cursor.execute("""
+                INSERT INTO fretes (data, fretista, placa, obra, fornecedor, nf, num_vale, qtd, km, km_total, pedagio, valor_frete, tipo_desconto, desconto, adicional_diesel, total_geral)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                str(row.get("Data", "")),
+                str(row.get("Fretista", "")),
+                str(row.get("Placa", "")),
+                str(row.get("Obra", "")),
+                str(row.get("Fornecedor", "")),
+                str(row.get("NF", "")),
+                str(row.get("Nº Vale", "")),
+                float(row.get("Qtd (Ton)", 0) or 0),
+                float(row.get("KM", 0) or 0),
+                float(row.get("KM Total", 0) or 0),
+                float(row.get("Pedágio (R$)", 0) or 0),
+                float(row.get("Valor Frete (R$)", 0) or 0),
+                str(row.get("Tipo Desconto", "Nenhum")),
+                float(row.get("Desconto (R$)", 0) or 0),
+                float(row.get("Adicional Diesel (R$)", 0) or 0),
+                float(row.get("Total Geral (R$)", 0) or 0)
+            ))
+        conn.commit()
 
 def limpar_banco():
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM fretes")
-    conn.commit()
-    conn.close()
+    with sqlite3.connect(DB_NAME) as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM fretes")
+        conn.commit()
 
-# Inicializa o banco de dados na primeira execução
+# Inicializa o BD
 init_db()
 
-# --- ESTILIZAÇÃO CSS CUSTOMIZADA (TEMA ELLENCO) ---
+# --- ESTILIZAÇÃO CSS CUSTOMIZADA ---
 st.markdown("""
     <style>
         .stApp {
@@ -187,10 +217,9 @@ with col_title:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# Sincronizar dados salvos do banco na sessão
 lista_fretes = carregar_fretes()
 
-# --- 1. FORMULÁRIO COM O TEMA ELLENCO ---
+# --- 1. FORMULÁRIO ---
 with st.form("frete_form", clear_on_submit=True):
     st.subheader("➕ Adicionar Novo Frete")
     
@@ -230,23 +259,26 @@ with st.form("frete_form", clear_on_submit=True):
             pedagio = st.number_input("🛣️ Pedágio (R$)", min_value=0.0, value=12.50, step=1.00, format="%.2f")
 
     with st.container(border=True):
-        st.markdown("##### 🏷️ Descontos e Abatimentos")
-        c1, c2 = st.columns(2)
+        st.markdown("##### 🏷️ Descontos e Adicionais")
+        c1, c2, c3 = st.columns(3)
         with c1:
             tipo_desconto = st.selectbox("🏷️ Tipo de Desconto", ["Nenhum", "Diesel", "Marmitex"])
         with c2:
             valor_desconto = st.number_input("➖ Valor do Desconto (R$)", min_value=0.0, value=0.00, step=5.00, format="%.2f")
+        with c3:
+            adicional_diesel = st.number_input("⛽ Adicional Diesel (R$)", min_value=0.0, value=0.00, step=5.00, format="%.2f")
 
     km_total_preview = quantidade * km
     subtotal_preview = (km_total_preview * valor_frete) + pedagio
-    total_geral_preview = subtotal_preview - valor_desconto
+    # Subtrai o desconto e soma o adicional de diesel
+    total_geral_preview = subtotal_preview - valor_desconto + adicional_diesel
 
     st.markdown("---")
     
     m1, m2, m3, m4 = st.columns(4)
-    m1.metric(label="KM Total (Qtd x KM)", value=f"{km_total_preview:,.2f} km")
-    m2.metric(label="Subtotal da Viagem", value=f"R$ {subtotal_preview:,.2f}")
-    m3.metric(label="Desconto Aplicado", value=f"R$ {valor_desconto:,.2f}")
+    m1.metric(label="Subtotal", value=f"R$ {subtotal_preview:,.2f}")
+    m2.metric(label="Descontos", value=f"R$ {valor_desconto:,.2f}")
+    m3.metric(label="Adicional Diesel", value=f"R$ {adicional_diesel:,.2f}")
     m4.metric(label="Total Geral Final", value=f"R$ {total_geral_preview:,.2f}")
 
     st.markdown("---")
@@ -268,17 +300,18 @@ if submitted_add:
         "Valor Frete (R$)": float(valor_frete),
         "Tipo Desconto": tipo_desconto,
         "Desconto (R$)": float(valor_desconto),
+        "Adicional Diesel (R$)": float(adicional_diesel),
         "Total Geral (R$)": float(total_geral_preview)
     }
     salvar_novo_frete(novo_frete)
     st.success("Frete salvo com sucesso no banco de dados!")
     st.rerun()
 
-# --- 2. CONTROLE DE CRUD (TABELA INTERATIVA) ---
+# --- 2. TABELA INTERATIVA (CRUD) ---
 if len(lista_fretes) > 0:
     st.markdown("---")
-    st.subheader(f"📋 Controle de Registro de Frete ({len(lista_fretes)} registros salvas)")
-    st.markdown("💡 *Você pode editar qualquer célula diretamente na tabela, adicionar novas linhas ou apagar linhas selecionando-as e clicando no ícone de lixeira.*")
+    st.subheader(f"📋 Controle de Registro de Frete ({len(lista_fretes)} registros salvos)")
+    st.markdown("💡 *Você pode editar qualquer célula diretamente na tabela ou apagar linhas selecionando-as.*")
 
     df_current = pd.DataFrame(lista_fretes)
 
@@ -289,34 +322,36 @@ if len(lista_fretes) > 0:
         key="crud_editor"
     )
 
-    # Recálculo automático dos totais em caso de edição manual das células
-    for idx, row in df_edited.iterrows():
-        try:
-            q = float(row["Qtd (Ton)"])
-            k = float(row["KM"])
-            vf = float(row["Valor Frete (R$)"])
-            ped = float(row["Pedágio (R$)"])
-            desc = float(row["Desconto (R$)"])
-            
-            km_tot = q * k
-            df_edited.loc[idx, "KM Total"] = km_tot
-            df_edited.loc[idx, "Total Geral (R$)"] = ((km_tot * vf) + ped) - desc
-        except Exception:
-            pass
+    col_save, col_btn1, col_btn2 = st.columns([1, 1, 1])
 
-    # Sincroniza edições da tabela diretamente com o banco SQLite
-    nova_lista_dict = df_edited.to_dict(orient="records")
-    if nova_lista_dict != lista_fretes:
-        atualizar_banco_inteiro(nova_lista_dict)
+    with col_save:
+        if st.button("💾 Salvar Edições da Tabela", use_container_width=True):
+            for idx, row in df_edited.iterrows():
+                try:
+                    q = float(row["Qtd (Ton)"])
+                    k = float(row["KM"])
+                    vf = float(row["Valor Frete (R$)"])
+                    ped = float(row["Pedágio (R$)"])
+                    desc = float(row["Desconto (R$)"])
+                    adic = float(row["Adicional Diesel (R$)"])
+                    
+                    km_tot = q * k
+                    df_edited.loc[idx, "KM Total"] = km_tot
+                    # Recálculo considerando a soma do Adicional Diesel
+                    df_edited.loc[idx, "Total Geral (R$)"] = ((km_tot * vf) + ped) - desc + adic
+                except Exception:
+                    pass
+            atualizar_banco_inteiro(df_edited)
+            st.success("Alterações salvas com sucesso!")
+            st.rerun()
 
-    col_btn1, col_btn2 = st.columns(2)
+    with col_btn1:
+        if st.button("🗑️ Limpar Todos os Registros", use_container_width=True):
+            limpar_banco()
+            st.success("Todos os registros foram apagados!")
+            st.rerun()
 
-    if col_btn1.button("🗑️ Limpar Todos os Registros", use_container_width=True):
-        limpar_banco()
-        st.success("Todos os registros foram apagados do banco de dados!")
-        st.rerun()
-
-    # --- 3. GERAÇÃO DA PLANILHA EXCEL CONSOLIDADA ---
+    # --- 3. GERAÇÃO DO EXCEL CONSOLIDADO ---
     try:
         wb = openpyxl.Workbook()
         ws = wb.active
@@ -324,7 +359,6 @@ if len(lista_fretes) > 0:
         ws.views.sheetView[0].showGridLines = True
 
         ELLENCO_NAVY = "00234B"
-        ELLENCO_RED = "D9232A"
         TOTAL_BG = "E6EEF4"
         ZEBRA_BG = "F8FAFC"
         BORDER_GRAY = "D9D9D9"
@@ -349,14 +383,14 @@ if len(lista_fretes) > 0:
         align_left = Alignment(horizontal="left", vertical="center")
         align_right = Alignment(horizontal="right", vertical="center")
 
-        ws.merge_cells("A1:O1")
+        ws.merge_cells("A1:P1")
         ws["A1"] = "ELLENCO - CONTROLE DE REGISTRO DE FRETE"
         ws["A1"].font = font_title
 
         headers = [
             "Data", "Fretista", "Placa", "Obra", "Fornecedor", "Nota Fiscal", "Nº Vale",
             "Quantidade (Ton)", "KM", "KM Total (Qtd x KM)", 
-            "Pedágio (R$)", "Valor do Frete (R$)", "Tipo Desconto", "Desconto (R$)", "Total Geral (R$)"
+            "Pedágio (R$)", "Valor do Frete (R$)", "Tipo Desconto", "Desconto (R$)", "Adicional Diesel (R$)", "Total Geral (R$)"
         ]
 
         for col_idx, header in enumerate(headers, 1):
@@ -385,7 +419,9 @@ if len(lista_fretes) > 0:
             ws.cell(row=r, column=12, value=item.get("Valor Frete (R$)", 0)).alignment = align_right
             ws.cell(row=r, column=13, value=str(item.get("Tipo Desconto", "Nenhum"))).alignment = align_center
             ws.cell(row=r, column=14, value=item.get("Desconto (R$)", 0)).alignment = align_right
-            ws.cell(row=r, column=15, value=f"=((J{r}*L{r})+K{r})-N{r}").alignment = align_right
+            ws.cell(row=r, column=15, value=item.get("Adicional Diesel (R$)", 0)).alignment = align_right
+            # Fórmula do Excel somando o adicional (Coluna O) e subtraindo o desconto (Coluna N)
+            ws.cell(row=r, column=16, value=f"=((J{r}*L{r})+K{r})-N{r}+O{r}").alignment = align_right
             
             ws.cell(row=r, column=8).number_format = "#,##0.00"
             ws.cell(row=r, column=9).number_format = "#,##0.0"
@@ -394,8 +430,9 @@ if len(lista_fretes) > 0:
             ws.cell(row=r, column=12).number_format = 'R$ #,##0.00'
             ws.cell(row=r, column=14).number_format = 'R$ #,##0.00'
             ws.cell(row=r, column=15).number_format = 'R$ #,##0.00'
+            ws.cell(row=r, column=16).number_format = 'R$ #,##0.00'
             
-            for c in range(1, 16):
+            for c in range(1, 17):
                 cell = ws.cell(row=r, column=c)
                 cell.font = font_regular
                 cell.border = thin_border
@@ -411,6 +448,7 @@ if len(lista_fretes) > 0:
         ws.cell(row=tot_row, column=12, value=f"=AVERAGE(L{start_row}:L{tot_row-1})")
         ws.cell(row=tot_row, column=14, value=f"=SUM(N{start_row}:N{tot_row-1})")
         ws.cell(row=tot_row, column=15, value=f"=SUM(O{start_row}:O{tot_row-1})")
+        ws.cell(row=tot_row, column=16, value=f"=SUM(P{start_row}:P{tot_row-1})")
 
         ws.cell(row=tot_row, column=8).number_format = "#,##0.00"
         ws.cell(row=tot_row, column=9).number_format = "#,##0.0"
@@ -419,28 +457,4 @@ if len(lista_fretes) > 0:
         ws.cell(row=tot_row, column=12).number_format = 'R$ #,##0.00'
         ws.cell(row=tot_row, column=14).number_format = 'R$ #,##0.00'
         ws.cell(row=tot_row, column=15).number_format = 'R$ #,##0.00'
-
-        for c in range(1, 16):
-            cell = ws.cell(row=tot_row, column=c)
-            cell.font = font_bold
-            cell.fill = fill_total
-            cell.border = thin_border
-
-        for col in ws.columns:
-            max_len = max(len(str(cell.value or '')) for cell in col)
-            col_letter = get_column_letter(col[0].column)
-            ws.column_dimensions[col_letter].width = max(max_len + 4, 15)
-
-        output = io.BytesIO()
-        wb.save(output)
-        output.seek(0)
-
-        col_btn2.download_button(
-            label="📥 Gerar Planilha Excel",
-            data=output,
-            file_name="Controle_de_Registro_de_Frete_Ellenco.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            use_container_width=True
-        )
-    except Exception as e:
-        st.error(f"Ocorreu um erro ao gerar o arquivo Excel: {e}")
+        ws.cell(row=tot_row, column=16).number_format
