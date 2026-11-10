@@ -40,7 +40,6 @@ def init_db():
                 total_geral REAL
             )
         """)
-        # Migração simples caso a tabela já exista sem a coluna adicional_diesel
         try:
             cursor.execute("ALTER TABLE fretes ADD COLUMN adicional_diesel REAL DEFAULT 0.0")
         except sqlite3.OperationalError:
@@ -49,23 +48,24 @@ def init_db():
 
 def carregar_fretes():
     with sqlite3.connect(DB_NAME) as conn:
+        # Ordem personalizada das colunas no SELECT
         query = """
             SELECT 
-                data as Data, 
                 fretista as Fretista, 
-                placa as Placa, 
-                obra as Obra, 
-                fornecedor as Fornecedor, 
-                nf as NF, 
+                data as Data, 
                 num_vale as 'Nº Vale', 
-                qtd as 'Qtd (Ton)', 
+                nf as 'Nota Fiscal', 
                 km as KM, 
-                km_total as 'KM Total', 
-                pedagio as 'Pedágio (R$)', 
+                obra as Obra, 
+                qtd as 'Qtd (Ton)', 
+                placa as Placa, 
+                fornecedor as Fornecedor, 
                 valor_frete as 'Valor Frete (R$)', 
                 tipo_desconto as 'Tipo Desconto', 
                 desconto as 'Desconto (R$)', 
+                pedagio as 'Pedágio (R$)', 
                 adicional_diesel as 'Adicional Diesel (R$)',
+                km_total as 'KM Total',
                 total_geral as 'Total Geral (R$)' 
             FROM fretes
         """
@@ -80,7 +80,7 @@ def salvar_novo_frete(item):
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             item["Data"], item["Fretista"], item["Placa"], item["Obra"], item["Fornecedor"],
-            item["NF"], item["Nº Vale"], item["Qtd (Ton)"], item["KM"], item["KM Total"],
+            item["Nota Fiscal"], item["Nº Vale"], item["Qtd (Ton)"], item["KM"], item["KM Total"],
             item["Pedágio (R$)"], item["Valor Frete (R$)"], item["Tipo Desconto"],
             item["Desconto (R$)"], item["Adicional Diesel (R$)"], item["Total Geral (R$)"]
         ))
@@ -100,7 +100,7 @@ def atualizar_banco_inteiro(df_edited):
                 str(row.get("Placa", "")),
                 str(row.get("Obra", "")),
                 str(row.get("Fornecedor", "")),
-                str(row.get("NF", "")),
+                str(row.get("Nota Fiscal", "")),
                 str(row.get("Nº Vale", "")),
                 float(row.get("Qtd (Ton)", 0) or 0),
                 float(row.get("KM", 0) or 0),
@@ -290,7 +290,7 @@ if submitted_add:
         "Placa": placa_veiculo,
         "Obra": obra,
         "Fornecedor": fornecedor,
-        "NF": nota_fiscal,
+        "Nota Fiscal": nota_fiscal,
         "Nº Vale": num_vale,
         "Qtd (Ton)": float(quantidade),
         "KM": float(km),
@@ -336,6 +336,8 @@ if len(lista_fretes) > 0:
                     
                     km_tot = q * k
                     df_edited.loc[idx, "KM Total"] = km_tot
+                    # Ordem das colunas: Qtd (Ton) = Col G (7), KM = Col E (5), Valor Frete = Col J (10), Pedágio = Col M (13), Desconto = Col L (12), Adicional Diesel = Col N (14)
+                    # Fórmula estruturada: ((Qtd * KM) * Valor_Frete) + Pedagio - Desconto + Adicional_Diesel
                     df_edited.loc[idx, "Total Geral (R$)"] = ((km_tot * vf) + ped) - desc + adic
                 except Exception:
                     pass
@@ -385,14 +387,17 @@ if len(lista_fretes) > 0:
         align_left = Alignment(horizontal="left", vertical="center")
         align_right = Alignment(horizontal="right", vertical="center")
 
-        ws.merge_cells("A1:P1")
+        ws.merge_cells("A1:O1")
         ws["A1"] = "ELLENCO - CONTROLE DE REGISTRO DE FRETE"
         ws["A1"].font = font_title
 
+        # Ordem solicitada das colunas no Excel:
+        # 1: Fretista, 2: Data, 3: Nº Vale, 4: Nota Fiscal, 5: KM, 6: Obra, 7: Qtde (ton), 8: Placa, 9: Fornecedor, 
+        # 10: Valor do frete, 11: Tipo desconto, 12: Desconto, 13: Pedagio, 14: Adicional diesel, 15: Total geral
         headers = [
-            "Data", "Fretista", "Placa", "Obra", "Fornecedor", "Nota Fiscal", "Nº Vale",
-            "Quantidade (Ton)", "KM", "KM Total (Qtd x KM)", 
-            "Pedágio (R$)", "Valor do Frete (R$)", "Tipo Desconto", "Desconto (R$)", "Adicional Diesel (R$)", "Total Geral (R$)"
+            "Fretista", "Data", "Nº Vale", "Nota Fiscal", "KM", "Obra", "Qtde (ton)", 
+            "Placa", "Fornecedor", "Valor do frete (R$)", "Tipo Desconto", "Desconto (R$)", 
+            "Pedágio (R$)", "Adicional Diesel (R$)", "Total Geral (R$)"
         ]
 
         for col_idx, header in enumerate(headers, 1):
@@ -406,34 +411,48 @@ if len(lista_fretes) > 0:
         for i, item in enumerate(lista_fretes):
             r = start_row + i
             
-            ws.cell(row=r, column=1, value=str(item.get("Data", ""))).alignment = align_center
-            ws.cell(row=r, column=2, value=str(item.get("Fretista", ""))).alignment = align_left
-            ws.cell(row=r, column=3, value=str(item.get("Placa", ""))).alignment = align_center
-            ws.cell(row=r, column=4, value=str(item.get("Obra", ""))).alignment = align_center
-            ws.cell(row=r, column=5, value=str(item.get("Fornecedor", ""))).alignment = align_left
-            ws.cell(row=r, column=6, value=str(item.get("NF", ""))).alignment = align_center
-            ws.cell(row=r, column=7, value=str(item.get("Nº Vale", ""))).alignment = align_center
-            ws.cell(row=r, column=8, value=item.get("Qtd (Ton)", 0)).alignment = align_right
-            ws.cell(row=r, column=9, value=item.get("KM", 0)).alignment = align_right
+            # Mapeamento estrito seguindo a ordem das colunas:
+            # A (1): Fretista
+            ws.cell(row=r, column=1, value=str(item.get("Fretista", ""))).alignment = align_left
+            # B (2): Data
+            ws.cell(row=r, column=2, value=str(item.get("Data", ""))).alignment = align_center
+            # C (3): Nº Vale
+            ws.cell(row=r, column=3, value=str(item.get("Nº Vale", ""))).alignment = align_center
+            # D (4): Nota Fiscal
+            ws.cell(row=r, column=4, value=str(item.get("Nota Fiscal", ""))).alignment = align_center
+            # E (5): KM
+            ws.cell(row=r, column=5, value=item.get("KM", 0)).alignment = align_right
+            # F (6): Obra
+            ws.cell(row=r, column=6, value=str(item.get("Obra", ""))).alignment = align_center
+            # G (7): Qtde (ton)
+            ws.cell(row=r, column=7, value=item.get("Qtd (Ton)", 0)).alignment = align_right
+            # H (8): Placa
+            ws.cell(row=r, column=8, value=str(item.get("Placa", ""))).alignment = align_center
+            # I (9): Fornecedor
+            ws.cell(row=r, column=9, value=str(item.get("Fornecedor", ""))).alignment = align_left
+            # J (10): Valor do frete
+            ws.cell(row=r, column=10, value=item.get("Valor Frete (R$)", 0)).alignment = align_right
+            # K (11): Tipo Desconto
+            ws.cell(row=r, column=11, value=str(item.get("Tipo Desconto", "Nenhum"))).alignment = align_center
+            # L (12): Desconto
+            ws.cell(row=r, column=12, value=item.get("Desconto (R$)", 0)).alignment = align_right
+            # M (13): Pedágio
+            ws.cell(row=r, column=13, value=item.get("Pedágio (R$)", 0)).alignment = align_right
+            # N (14): Adicional Diesel
+            ws.cell(row=r, column=14, value=item.get("Adicional Diesel (R$)", 0)).alignment = align_right
+            # O (15): Total Geral -> Fórmula: ((Qtde * KM) * Valor_Frete) + Pedagio - Desconto + Adicional_Diesel -> ((G{r}*E{r})*J{r})+M{r}-L{r}+N{r}
+            ws.cell(row=r, column=15, value=f"=((G{r}*E{r})*J{r})+M{r}-L{r}+N{r}").alignment = align_right
             
-            ws.cell(row=r, column=10, value=f"=H{r}*I{r}").alignment = align_right
-            ws.cell(row=r, column=11, value=item.get("Pedágio (R$)", 0)).alignment = align_right
-            ws.cell(row=r, column=12, value=item.get("Valor Frete (R$)", 0)).alignment = align_right
-            ws.cell(row=r, column=13, value=str(item.get("Tipo Desconto", "Nenhum"))).alignment = align_center
-            ws.cell(row=r, column=14, value=item.get("Desconto (R$)", 0)).alignment = align_right
-            ws.cell(row=r, column=15, value=item.get("Adicional Diesel (R$)", 0)).alignment = align_right
-            ws.cell(row=r, column=16, value=f"=((J{r}*L{r})+K{r})-N{r}+O{r}").alignment = align_right
-            
-            ws.cell(row=r, column=8).number_format = "#,##0.00"
-            ws.cell(row=r, column=9).number_format = "#,##0.0"
-            ws.cell(row=r, column=10).number_format = "#,##0.00"
-            ws.cell(row=r, column=11).number_format = 'R$ #,##0.00'
+            # Formatações numéricas
+            ws.cell(row=r, column=5).number_format = "#,##0.0"
+            ws.cell(row=r, column=7).number_format = "#,##0.00"
+            ws.cell(row=r, column=10).number_format = 'R$ #,##0.00'
             ws.cell(row=r, column=12).number_format = 'R$ #,##0.00'
+            ws.cell(row=r, column=13).number_format = 'R$ #,##0.00'
             ws.cell(row=r, column=14).number_format = 'R$ #,##0.00'
             ws.cell(row=r, column=15).number_format = 'R$ #,##0.00'
-            ws.cell(row=r, column=16).number_format = 'R$ #,##0.00'
             
-            for c in range(1, 17):
+            for c in range(1, 16):
                 cell = ws.cell(row=r, column=c)
                 cell.font = font_regular
                 cell.border = thin_border
@@ -442,25 +461,23 @@ if len(lista_fretes) > 0:
 
         tot_row = start_row + len(lista_fretes)
         ws.cell(row=tot_row, column=1, value="TOTAL GERAL").font = font_bold
-        ws.cell(row=tot_row, column=8, value=f"=SUM(H{start_row}:H{tot_row-1})")
-        ws.cell(row=tot_row, column=9, value=f"=SUM(I{start_row}:I{tot_row-1})")
-        ws.cell(row=tot_row, column=10, value=f"=SUM(J{start_row}:J{tot_row-1})")
-        ws.cell(row=tot_row, column=11, value=f"=SUM(K{start_row}:K{tot_row-1})")
-        ws.cell(row=tot_row, column=12, value=f"=AVERAGE(L{start_row}:L{tot_row-1})")
+        ws.cell(row=tot_row, column=5, value=f"=SUM(E{start_row}:E{tot_row-1})")
+        ws.cell(row=tot_row, column=7, value=f"=SUM(G{start_row}:G{tot_row-1})")
+        ws.cell(row=tot_row, column=10, value=f"=AVERAGE(J{start_row}:J{tot_row-1})")
+        ws.cell(row=tot_row, column=12, value=f"=SUM(L{start_row}:L{tot_row-1})")
+        ws.cell(row=tot_row, column=13, value=f"=SUM(M{start_row}:M{tot_row-1})")
         ws.cell(row=tot_row, column=14, value=f"=SUM(N{start_row}:N{tot_row-1})")
         ws.cell(row=tot_row, column=15, value=f"=SUM(O{start_row}:O{tot_row-1})")
-        ws.cell(row=tot_row, column=16, value=f"=SUM(P{start_row}:P{tot_row-1})")
 
-        ws.cell(row=tot_row, column=8).number_format = "#,##0.00"
-        ws.cell(row=tot_row, column=9).number_format = "#,##0.0"
-        ws.cell(row=tot_row, column=10).number_format = "#,##0.00"
-        ws.cell(row=tot_row, column=11).number_format = 'R$ #,##0.00'
+        ws.cell(row=tot_row, column=5).number_format = "#,##0.0"
+        ws.cell(row=tot_row, column=7).number_format = "#,##0.00"
+        ws.cell(row=tot_row, column=10).number_format = 'R$ #,##0.00'
         ws.cell(row=tot_row, column=12).number_format = 'R$ #,##0.00'
+        ws.cell(row=tot_row, column=13).number_format = 'R$ #,##0.00'
         ws.cell(row=tot_row, column=14).number_format = 'R$ #,##0.00'
         ws.cell(row=tot_row, column=15).number_format = 'R$ #,##0.00'
-        ws.cell(row=tot_row, column=16).number_format = 'R$ #,##0.00'
 
-        for c in range(1, 17):
+        for c in range(1, 16):
             cell = ws.cell(row=tot_row, column=c)
             cell.font = font_bold
             cell.fill = fill_total
