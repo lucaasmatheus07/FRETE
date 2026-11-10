@@ -239,7 +239,6 @@ with st.form("frete_form", clear_on_submit=True):
         st.markdown("##### 🏗️ Origem, Destino e Documentação")
         c1, c2, c3 = st.columns(3)
         with c1:
-            # Adicionado o item "013.0413-2" na lista de obras
             obra = st.selectbox("🏗️ Obra / Destino", ["013.0413-2", "013.0427-2", "013.0434-2", "013.0437-2", "013.0438-2"])
         with c2:
             fornecedor = st.text_input("🏭 Fornecedor", value="Ellenco")
@@ -344,14 +343,15 @@ if len(lista_fretes) > 0:
             st.rerun()
 
     with col_btn1:
+        # A checkbox é declarada ANTES do botão para a variável existir
+        confirmar_limpeza = st.checkbox("⚠️ Confirmar exclusão total")
         if st.button("🗑️ Limpar Todos os Registros", use_container_width=True):
             if confirmar_limpeza:
                 limpar_banco()
                 st.success("Todos os registros foram apagados!")
                 st.rerun()
             else:
-                st.warning("Marque a caixa de confirmação abaixo para apagar os registros.")
-        confirmar_limpeza = st.checkbox("⚠️ Confirmar exclusão total")
+                st.warning("Marque a caixa de confirmação acima para apagar os registros.")
 
     # --- 3. GERAÇÃO DO EXCEL CONSOLIDADO ---
     try:
@@ -368,115 +368,3 @@ if len(lista_fretes) > 0:
         font_title = Font(name="Segoe UI", size=16, bold=True, color=ELLENCO_NAVY)
         font_header = Font(name="Segoe UI", size=11, bold=True, color="FFFFFF")
         font_regular = Font(name="Segoe UI", size=11)
-        font_bold = Font(name="Segoe UI", size=11, bold=True, color=ELLENCO_NAVY)
-
-        fill_header = PatternFill(start_color=ELLENCO_NAVY, end_color=ELLENCO_NAVY, fill_type="solid")
-        fill_zebra = PatternFill(start_color=ZEBRA_BG, end_color=ZEBRA_BG, fill_type="solid")
-        fill_total = PatternFill(start_color=TOTAL_BG, end_color=TOTAL_BG, fill_type="solid")
-
-        thin_border = Border(
-            left=Side(style='thin', color=BORDER_GRAY),
-            right=Side(style='thin', color=BORDER_GRAY),
-            top=Side(style='thin', color=BORDER_GRAY),
-            bottom=Side(style='thin', color=BORDER_GRAY)
-        )
-
-        align_center = Alignment(horizontal="center", vertical="center")
-        align_left = Alignment(horizontal="left", vertical="center")
-        align_right = Alignment(horizontal="right", vertical="center")
-
-        ws.merge_cells("A1:O1")
-        ws["A1"] = "ELLENCO - CONTROLE DE REGISTRO DE FRETE"
-        ws["A1"].font = font_title
-
-        headers = [
-            "Fretista", "Data", "Nº Vale", "Nota Fiscal", "KM", "Obra", "Qtde (ton)", 
-            "Placa", "Fornecedor", "Valor do frete (R$)", "Tipo Desconto", "Desconto (R$)", 
-            "Pedágio (R$)", "Adicional Diesel (R$)", "Total Geral (R$)"
-        ]
-
-        for col_idx, header in enumerate(headers, 1):
-            cell = ws.cell(row=3, column=col_idx, value=header)
-            cell.font = font_header
-            cell.fill = fill_header
-            cell.alignment = align_center
-            cell.border = thin_border
-
-        start_row = 4
-        for i, item in enumerate(lista_fretes):
-            r = start_row + i
-            
-            ws.cell(row=r, column=1, value=str(item.get("Fretista", ""))).alignment = align_left
-            ws.cell(row=r, column=2, value=str(item.get("Data", ""))).alignment = align_center
-            ws.cell(row=r, column=3, value=str(item.get("Nº Vale", ""))).alignment = align_center
-            ws.cell(row=r, column=4, value=str(item.get("Nota Fiscal", ""))).alignment = align_center
-            ws.cell(row=r, column=5, value=item.get("KM", 0)).alignment = align_right
-            ws.cell(row=r, column=6, value=str(item.get("Obra", ""))).alignment = align_center
-            ws.cell(row=r, column=7, value=item.get("Qtd (Ton)", 0)).alignment = align_right
-            ws.cell(row=r, column=8, value=str(item.get("Placa", ""))).alignment = align_center
-            ws.cell(row=r, column=9, value=str(item.get("Fornecedor", ""))).alignment = align_left
-            ws.cell(row=r, column=10, value=item.get("Valor Frete (R$)", 0)).alignment = align_right
-            ws.cell(row=r, column=11, value=str(item.get("Tipo Desconto", "Nenhum"))).alignment = align_center
-            ws.cell(row=r, column=12, value=item.get("Desconto (R$)", 0)).alignment = align_right
-            ws.cell(row=r, column=13, value=item.get("Pedágio (R$)", 0)).alignment = align_right
-            ws.cell(row=r, column=14, value=item.get("Adicional Diesel (R$)", 0)).alignment = align_right
-            ws.cell(row=r, column=15, value=f"=((G{r}*E{r})*J{r})+M{r}-L{r}+N{r}").alignment = align_right
-            
-            ws.cell(row=r, column=5).number_format = "#,##0.0"
-            ws.cell(row=r, column=7).number_format = "#,##0.00"
-            ws.cell(row=r, column=10).number_format = 'R$ #,##0.00'
-            ws.cell(row=r, column=12).number_format = 'R$ #,##0.00'
-            ws.cell(row=r, column=13).number_format = 'R$ #,##0.00'
-            ws.cell(row=r, column=14).number_format = 'R$ #,##0.00'
-            ws.cell(row=r, column=15).number_format = 'R$ #,##0.00'
-            
-            for c in range(1, 16):
-                cell = ws.cell(row=r, column=c)
-                cell.font = font_regular
-                cell.border = thin_border
-                if i % 2 == 1:
-                    cell.fill = fill_zebra
-
-        tot_row = start_row + len(lista_fretes)
-        ws.cell(row=tot_row, column=1, value="TOTAL GERAL").font = font_bold
-        ws.cell(row=tot_row, column=5, value=f"=SUM(E{start_row}:E{tot_row-1})")
-        ws.cell(row=tot_row, column=7, value=f"=SUM(G{start_row}:G{tot_row-1})")
-        ws.cell(row=tot_row, column=10, value=f"=AVERAGE(J{start_row}:J{tot_row-1})")
-        ws.cell(row=tot_row, column=12, value=f"=SUM(L{start_row}:L{tot_row-1})")
-        ws.cell(row=tot_row, column=13, value=f"=SUM(M{start_row}:M{tot_row-1})")
-        ws.cell(row=tot_row, column=14, value=f"=SUM(N{start_row}:N{tot_row-1})")
-        ws.cell(row=tot_row, column=15, value=f"=SUM(O{start_row}:O{tot_row-1})")
-
-        ws.cell(row=tot_row, column=5).number_format = "#,##0.0"
-        ws.cell(row=tot_row, column=7).number_format = "#,##0.00"
-        ws.cell(row=tot_row, column=10).number_format = 'R$ #,##0.00'
-        ws.cell(row=tot_row, column=12).number_format = 'R$ #,##0.00'
-        ws.cell(row=tot_row, column=13).number_format = 'R$ #,##0.00'
-        ws.cell(row=tot_row, column=14).number_format = 'R$ #,##0.00'
-        ws.cell(row=tot_row, column=15).number_format = 'R$ #,##0.00'
-
-        for c in range(1, 16):
-            cell = ws.cell(row=tot_row, column=c)
-            cell.font = font_bold
-            cell.fill = fill_total
-            cell.border = thin_border
-
-        for col in ws.columns:
-            max_len = max(len(str(cell.value or '')) for cell in col)
-            col_letter = get_column_letter(col[0].column)
-            ws.column_dimensions[col_letter].width = max(max_len + 4, 15)
-
-        output = io.BytesIO()
-        wb.save(output)
-        output.seek(0)
-
-        with col_btn2:
-            st.download_button(
-                label="📥 Gerar Planilha Excel",
-                data=output,
-                file_name="Controle_de_Registro_de_Frete_Ellenco.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True
-            )
-    except Exception as e:
-        st.error(f"Ocorreu um erro ao gerar o arquivo Excel: {e}")
