@@ -457,4 +457,30 @@ if len(lista_fretes) > 0:
         ws.cell(row=tot_row, column=12).number_format = 'R$ #,##0.00'
         ws.cell(row=tot_row, column=14).number_format = 'R$ #,##0.00'
         ws.cell(row=tot_row, column=15).number_format = 'R$ #,##0.00'
-        ws.cell(row=tot_row, column=16).number_format
+        ws.cell(row=tot_row, column=16).number_format = 'R$ #,##0.00'
+
+        for c in range(1, 17):
+            cell = ws.cell(row=tot_row, column=c)
+            cell.font = font_bold
+            cell.fill = fill_total
+            cell.border = thin_border
+
+        for col in ws.columns:
+            max_len = max(len(str(cell.value or '')) for cell in col)
+            col_letter = get_column_letter(col[0].column)
+            ws.column_dimensions[col_letter].width = max(max_len + 4, 15)
+
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+
+        with col_btn2:
+            st.download_button(
+                label="📥 Gerar Planilha Excel",
+                data=output,
+                file_name="Controle_de_Registro_de_Frete_Ellenco.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True
+            )
+    except Exception as e:
+        st.error(f"Ocorreu um erro ao gerar o arquivo Excel: {e}")
