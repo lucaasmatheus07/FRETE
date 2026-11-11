@@ -246,16 +246,16 @@ with st.form("frete_form", clear_on_submit=True):
             nota_fiscal = st.text_input("📄 Nota Fiscal (NF)", value="12345")
 
     with st.container(border=True):
-        st.markdown("##### ⚖️ Carga, Distância e Custos")
+        st.markdown("##### ⚖️ Carga, Distância e Custos (Valores Inicialmente Zerados)")
         c1, c2, c3, c4 = st.columns(4)
         with c1:
-            quantidade = st.number_input("⚖️ Quantidade (Ton)", min_value=0.0, value=2.5, step=0.1, format="%.2f")
+            quantidade = st.number_input("⚖️ Quantidade (Ton)", min_value=0.0, value=0.0, step=0.1, format="%.2f")
         with c2:
-            km = st.number_input("KM (Quilometragem)", min_value=0.0, value=45.0, step=1.0, format="%.1f")
+            km = st.number_input("KM (Quilometragem)", min_value=0.0, value=0.0, step=1.0, format="%.1f")
         with c3:
-            valor_frete = st.number_input("💵 Valor/Ton/KM (R$)", min_value=0.0, value=4.00, step=0.50, format="%.2f")
+            valor_frete = st.number_input("💵 Valor/Ton/KM (R$)", min_value=0.0, value=0.00, step=0.50, format="%.2f")
         with c4:
-            pedagio = st.number_input("🛣️ Pedágio (R$)", min_value=0.0, value=12.50, step=1.00, format="%.2f")
+            pedagio = st.number_input("🛣️ Pedágio (R$)", min_value=0.0, value=0.00, step=1.00, format="%.2f")
 
     with st.container(border=True):
         st.markdown("##### 🏷️ Descontos e Adicionais")
@@ -343,15 +343,14 @@ if len(lista_fretes) > 0:
             st.rerun()
 
     with col_btn1:
-        # A checkbox é declarada ANTES do botão para a variável existir
-        confirmar_limpeza = st.checkbox("⚠️ Confirmar exclusão total")
         if st.button("🗑️ Limpar Todos os Registros", use_container_width=True):
             if confirmar_limpeza:
                 limpar_banco()
                 st.success("Todos os registros foram apagados!")
                 st.rerun()
             else:
-                st.warning("Marque a caixa de confirmação acima para apagar os registros.")
+                st.warning("Marque a caixa de confirmação abaixo para apagar os registros.")
+        confirmar_limpeza = st.checkbox("⚠️ Confirmar exclusão total")
 
     # --- 3. GERAÇÃO DO EXCEL CONSOLIDADO ---
     try:
